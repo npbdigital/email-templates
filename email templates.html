@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Email Templates — NPB Digital</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; min-height: 100vh; padding: 24px; }
+    input, select, button { font-family: inherit; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+
+    .ql-container { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; border-color: #e2e8f0 !important; }
+    .ql-toolbar { border-top-left-radius: 8px; border-top-right-radius: 8px; border-color: #e2e8f0 !important; background: #f8fafc; }
+    .ql-toolbar.ql-snow { padding: 8px; }
+    .ql-editor { min-height: 260px; max-height: 420px; overflow-y: auto; line-height: 1.7; }
+    .ql-editor p { margin-bottom: 6px; }
+    .ql-snow .ql-stroke { stroke: #475569; }
+    .ql-snow .ql-fill { fill: #475569; }
+    .ql-snow .ql-picker-label { color: #475569; }
+    .ql-snow button:hover .ql-stroke, .ql-snow .ql-picker-label:hover .ql-stroke { stroke: #0f766e; }
+    .ql-snow button:hover .ql-fill { fill: #0f766e; }
+    .ql-snow button.ql-active .ql-stroke { stroke: #0f766e; }
+    .ql-snow button.ql-active .ql-fill { fill: #0f766e; }
+    .ql-snow .ql-picker.ql-expanded .ql-picker-options { border-color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-radius: 6px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const SUPABASE_URL = "https://hblyregbowxaxzpnerhf.supabase.co";
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhibHlyZWdib3d4YXh6cG5lcmhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTgwMjIsImV4cCI6MjA4NTczNDAyMn0.VZYeyTpJAtjWA0SbxQkEh-vwIy8MxLYPSgIgIrt8oSc";
+const H = { "apikey": ANON_KEY, "Authorization": `Bearer ${ANON_KEY}`, "Content-Type": "application/json", "Prefer": "return=representation" };
+const api = path => `${SUPABASE_URL}/rest/v1/${path}`;
+
+const TOOLBAR = [
+  [{ header: [1, 2, 3, false] }],
+  ["bold", "italic", "underline", "strike"],
+  [{ color: [] }, { background: [] }],
+  [{ align: [] }],
+  [{ list: "ordered" }, { list: "bullet" }],
+  [{ indent: "-1" }, { indent: "+1" }],
+  ["link", "image"],
+  ["clean"]
+];
+
+function App() {
+  const [folders, setFolders]           = useState([]);
+  const [templates, setTemplates]       = useState([]);
+  const [activeFolder, setActiveFolder] = useState(null);
+  const [page, setPage]                 = useState("list");
+  const [editing, setEditing]           = useState(null);
+  const [form, setForm]                 = useState({ name: "", subject: "", folder_id: null });
+  const [newFolderName, setNewFolderName] = useState("");
+  const [showFolderInput, setShowFolderInput] = useState(false);
+  const [copied, setCopied]             = useState(null);
+  const [saving, setSaving]             = useState(false);
+  const [hovered, setHovered]           = useState(null);
+  const quillRef = useRef(null);
+
+  useEffect(() => { loadFolders(); }, []);
+  useEffect(() => { loadTemplates(); }, [activeFolder]);
+
+  useEffect(() => {
+    if (page === "edit") {
+      setTimeout(() => {
+        const el = document.getElementById("quill-mount");
+        if (!el || quillRef.current) return;
+        quillRef.current = new Quill("#quill-mount", {
+          theme: "snow",
+          modules: { toolbar: TOOLBAR },
+          placeholder: "Escreva o corpo do e-mail aqui..."
+        });
+        const initialHtml = editing
+          ? (editing.body_html || "")
+          : "<p>Oi <strong>{{nome}}</strong>,</p><p><br></p><p>Sua mensagem aqui.</p><p><br></p><p>Felipe</p>";
+        quillRef.current.root.innerHTML = initialHtml;
+      }, 80);
+    } else {
+      quillRef.current = null;
+    }
+  }, [page]);
+
+  const loadFolders = async () => {
+    try {
+      const r = await fetch(api("email_folders?select=*&order=created_at.asc"), { headers: H });
+      setFolders(await r.json());
+    } catch(e) {}
+  };
+
+  const loadTemplates = async () => {
+    try {
+      const f = activeFolder ? `&folder_id=eq.${activeFolder}` : "";
+      const r = await fetch(api(`email_templates?select=*,email_folders(name)&order=created_at.asc${f}`), { headers: H });
+      const d = await r.json();
+      setTemplates(Array.isArray(d) ? d : []);
+    } catch(e) {}
+  };
+
+  const saveTemplate = async () => {
+    if (!form.name || !form.subject) return;
+    const body_html = quillRef.current ? quillRef.current.root.innerHTML : "";
+    if (!body_html || body_html === "<p><br></p>") { alert("O corpo do e-mail está vazio."); return; }
+    setSaving(true);
+    const payload = { name: form.name, subject: form.subject, body_html, folder_id: form.folder_id || null };
+    try {
+      if (editing) {
+        await fetch(api(`email_templates?id=eq.${editing.id}`), { method: "PATCH", headers: H, body: JSON.stringify(payload) });
+      } else {
+        await fetch(api("email_templates"), { method: "POST", headers: H, body: JSON.stringify(payload) });
+      }
+      quillRef.current = null;
+      setPage("list"); loadTemplates();
+    } catch(e) {}
+    setSaving(false);
+  };
+
+  const deleteTemplate = async (id, e) => {
+    e.stopPropagation();
+    if (!confirm("Apagar este template?")) return;
+    await fetch(api(`email_templates?id=eq.${id}`), { method: "DELETE", headers: H });
+    loadTemplates();
+  };
+
+  const addFolder = async () => {
+    if (!newFolderName.trim()) return;
+    await fetch(api("email_folders"), { method: "POST", headers: H, body: JSON.stringify({ name: newFolderName }) });
+    setNewFolderName(""); setShowFolderInput(false); loadFolders();
+  };
+
+  const deleteFolder = async (id, e) => {
+    e.stopPropagation();
+    if (!confirm("Apagar esta pasta? Os templates ficam sem pasta.")) return;
+    await fetch(api(`email_folders?id=eq.${id}`), { method: "DELETE", headers: H });
+    if (activeFolder === id) setActiveFolder(null);
+    loadFolders(); loadTemplates();
+  };
+
+  const openCreate = () => {
+    setEditing(null); quillRef.current = null;
+    setForm({ name: "", subject: "", folder_id: activeFolder });
+    setPage("edit");
+  };
+
+  const openEdit = t => {
+    setEditing(t); quillRef.current = null;
+    setForm({ name: t.name, subject: t.subject, folder_id: t.folder_id });
+    setPage("edit");
+  };
+
+  const goBack = () => { quillRef.current = null; setPage("list"); loadTemplates(); };
+
+  const copyId = (id, e) => {
+    if (e) e.stopPropagation();
+    navigator.clipboard?.writeText(id);
+    setCopied(id); setTimeout(() => setCopied(null), 1800);
+  };
+
+  const inp = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none" };
+  const lbl = { fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 };
+
+  /* ─── EDIT PAGE ─── */
+  if (page === "edit") return (
+    <div style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div style={{ background: "white", borderRadius: 16, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+
+        <div style={{ padding: "16px 24px", borderBottom: "1px solid #f0f4f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button onClick={goBack} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 13 }}>← Voltar</button>
+            <span style={{ color: "#e2e8f0" }}>|</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{editing ? "Editar template" : "Novo template"}</span>
+          </div>
+          {editing && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <code style={{ fontSize: 11, color: "#94a3b8" }}>{editing.id}</code>
+              <button onClick={e => copyId(editing.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#0f766e", fontSize: 11, fontWeight: 600 }}>
+                {copied === editing.id ? "✓ Copiado!" : "Copiar ID"}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div>
+              <label style={lbl}>Nome interno</label>
+              <input style={inp} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Ex: Webnário — lembrete 30min" />
+            </div>
+            <div>
+              <label style={lbl}>Pasta</label>
+              <select style={{...inp, background: "white"}} value={form.folder_id || ""} onChange={e => setForm({...form, folder_id: e.target.value || null})}>
+                <option value="">Sem pasta</option>
+                {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style={lbl}>Assunto do e-mail</label>
+            <input style={inp} value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} placeholder='Ex: {{nome}}, sua aula começa em 30 minutos' />
+          </div>
+
+          <div>
+            <label style={lbl}>Corpo do e-mail</label>
+            <div id="quill-mount"></div>
+            <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>
+              Use <code style={{ background: "#f1f5f9", padding: "1px 5px", borderRadius: 4 }}>{"{{nome}}"}</code> e <code style={{ background: "#f1f5f9", padding: "1px 5px", borderRadius: 4 }}>{"{{email}}"}</code> para personalizar com dados do lead. Para imagens, use o botão de imagem e cole a URL.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
+            <button onClick={saveTemplate} disabled={!form.name || !form.subject || saving}
+              style={{ background: (!form.name || !form.subject || saving) ? "#94a3b8" : "#0f766e", color: "white", border: "none", borderRadius: 8, padding: "9px 22px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+              {saving ? "Salvando..." : "Salvar template"}
+            </button>
+            <button onClick={goBack} style={{ background: "none", border: "none", color: "#64748b", fontSize: 13, cursor: "pointer", padding: "9px 12px" }}>Cancelar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ─── LIST PAGE ─── */
+  const activeFolderName = folders.find(f => f.id === activeFolder)?.name;
+
+  return (
+    <div style={{ maxWidth: 960, margin: "0 auto" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Email Templates</h1>
+          <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>NPB Digital — Felipe Sempe</p>
+        </div>
+        <button onClick={openCreate} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+          + Novo template
+        </button>
+      </div>
+
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+
+        {/* sidebar */}
+        <div style={{ width: 200, flexShrink: 0, background: "white", borderRadius: 12, border: "1px solid #e2e8f0", padding: 8 }}>
+          <p style={{ fontSize: 10, fontWeight: 600, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase", padding: "8px 10px 4px" }}>Filtrar</p>
+          <button onClick={() => setActiveFolder(null)}
+            style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", borderRadius: 7, fontSize: 13, border: "none", cursor: "pointer", background: activeFolder === null ? "#f0fdfa" : "transparent", color: activeFolder === null ? "#0f766e" : "#475569", fontWeight: activeFolder === null ? 600 : 400 }}>
+            Todos
+          </button>
+
+          {folders.length > 0 && <p style={{ fontSize: 10, fontWeight: 600, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase", padding: "10px 10px 4px" }}>Pastas</p>}
+
+          {folders.map(f => (
+            <div key={f.id} style={{ display: "flex", alignItems: "center" }}
+              onMouseEnter={() => setHovered(`f-${f.id}`)} onMouseLeave={() => setHovered(null)}>
+              <button onClick={() => setActiveFolder(f.id)}
+                style={{ flex: 1, textAlign: "left", padding: "7px 10px", borderRadius: 7, fontSize: 13, border: "none", cursor: "pointer", background: activeFolder === f.id ? "#f0fdfa" : "transparent", color: activeFolder === f.id ? "#0f766e" : "#475569", fontWeight: activeFolder === f.id ? 600 : 400 }}>
+                {f.name}
+              </button>
+              {hovered === `f-${f.id}` && (
+                <button onClick={e => deleteFolder(f.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#fca5a5", fontSize: 12, padding: "2px 5px" }}>✕</button>
+              )}
+            </div>
+          ))}
+
+          {showFolderInput ? (
+            <div style={{ padding: "4px 6px" }}>
+              <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") addFolder(); if (e.key === "Escape") setShowFolderInput(false); }}
+                placeholder="Nome da pasta"
+                style={{ width: "100%", border: "1px solid #99f6e4", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none" }} />
+              <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
+                <button onClick={addFolder} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 5, padding: "3px 10px", fontSize: 11, cursor: "pointer" }}>OK</button>
+                <button onClick={() => setShowFolderInput(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 11, cursor: "pointer" }}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setShowFolderInput(true)}
+              style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: "#94a3b8" }}>
+              + Nova pasta
+            </button>
+          )}
+        </div>
+
+        {/* templates */}
+        <div style={{ flex: 1 }}>
+          <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>
+            {activeFolderName ? `Pasta: ${activeFolderName}` : "Todos os templates"} · {templates.length} template{templates.length !== 1 ? "s" : ""}
+          </p>
+
+          {templates.length === 0 ? (
+            <div style={{ background: "white", borderRadius: 12, border: "1px solid #e2e8f0", padding: "60px 24px", textAlign: "center" }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>✉️</div>
+              <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12 }}>Nenhum template ainda.</p>
+              <button onClick={openCreate} style={{ background: "none", border: "none", color: "#0f766e", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>Criar o primeiro →</button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {templates.map(t => (
+                <div key={t.id} onClick={() => openEdit(t)}
+                  onMouseEnter={() => setHovered(`c-${t.id}`)} onMouseLeave={() => setHovered(null)}
+                  style={{ background: "white", border: `1px solid ${hovered === `c-${t.id}` ? "#99f6e4" : "#e2e8f0"}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer", transition: "border-color 0.15s" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{t.name}</span>
+                        {t.email_folders?.name && <span style={{ fontSize: 11, background: "#f0fdfa", color: "#0f766e", padding: "2px 8px", borderRadius: 20, fontWeight: 500 }}>{t.email_folders.name}</span>}
+                      </div>
+                      <p style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>{t.subject}</p>
+                    </div>
+                    {hovered === `c-${t.id}` && (
+                      <button onClick={e => deleteTemplate(t.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#fca5a5", marginLeft: 10, fontSize: 13 }}>✕</button>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
+                    <code style={{ fontSize: 11, color: "#94a3b8", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.id}</code>
+                    <button onClick={e => copyId(t.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#0f766e", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>
+                      {copied === t.id ? "✓ Copiado!" : "Copiar ID"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
