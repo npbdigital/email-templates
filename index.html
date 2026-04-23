@@ -6,6 +6,7 @@
   <title>Email Templates — NPB Digital</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -29,17 +30,53 @@
     .ql-snow button.ql-active .ql-stroke { stroke: #0f766e; }
     .ql-snow button.ql-active .ql-fill { fill: #0f766e; }
     .ql-snow .ql-picker.ql-expanded .ql-picker-options { border-color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-radius: 6px; }
+
+    .spin { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #0f766e; border-radius: 50%; animation: sp 0.6s linear infinite; }
+    @keyframes sp { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useCallback } = React;
 
 const SUPABASE_URL = "https://hblyregbowxaxzpnerhf.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhibHlyZWdib3d4YXh6cG5lcmhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTgwMjIsImV4cCI6MjA4NTczNDAyMn0.VZYeyTpJAtjWA0SbxQkEh-vwIy8MxLYPSgIgIrt8oSc";
-const H = { "apikey": ANON_KEY, "Authorization": `Bearer ${ANON_KEY}`, "Content-Type": "application/json", "Prefer": "return=representation" };
+
+const sb = window.supabase.createClient(SUPABASE_URL, ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "implicit" }
+});
+
 const api = path => `${SUPABASE_URL}/rest/v1/${path}`;
+
+const buildHeaders = async () => {
+  const { data } = await sb.auth.getSession();
+  const token = data.session?.access_token || ANON_KEY;
+  return {
+    "apikey": ANON_KEY,
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json",
+    "Prefer": "return=representation"
+  };
+};
+
+const callEdge = async (action, params = {}) => {
+  const { data } = await sb.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error("Sessão expirada — faça login novamente.");
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/email_admin_users`, {
+    method: "POST",
+    headers: {
+      "apikey": ANON_KEY,
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ action, params }),
+  });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body?.error || `HTTP ${r.status}`);
+  return body;
+};
 
 const TOOLBAR = [
   [{ header: [1, 2, 3, false] }],
@@ -52,7 +89,304 @@ const TOOLBAR = [
   ["clean"]
 ];
 
-function App() {
+const inp = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none" };
+const lbl = { fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 };
+const btnPrimary = { background: "#0f766e", color: "white", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, fontWeight: 500, cursor: "pointer" };
+const btnGhost = { background: "none", border: "none", color: "#64748b", fontSize: 13, cursor: "pointer", padding: "9px 12px" };
+
+/* ═════════════ LOGIN ═════════════ */
+function LoginScreen({ onRecoveryRequest }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(""); setBusy(true);
+    const { error } = await sb.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+    if (error) setError(error.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : error.message);
+    setBusy(false);
+  };
+
+  return (
+    <div style={{ maxWidth: 380, margin: "80px auto 0", background: "white", borderRadius: 16, border: "1px solid #e2e8f0", padding: 32 }}>
+      <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Email Templates</h1>
+      <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2, marginBottom: 24 }}>NPB Digital — Felipe Sempe</p>
+
+      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <label style={lbl}>E-mail</label>
+          <input style={inp} type="email" value={email} autoComplete="username"
+            onChange={e => setEmail(e.target.value)} placeholder="voce@empresa.com" required />
+        </div>
+        <div>
+          <label style={lbl}>Senha</label>
+          <input style={inp} type="password" value={password} autoComplete="current-password"
+            onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
+        </div>
+
+        {error && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", padding: "8px 12px", borderRadius: 8, fontSize: 12 }}>{error}</div>}
+
+        <button type="submit" disabled={busy || !email || !password}
+          style={{ ...btnPrimary, padding: "10px 18px", marginTop: 4, opacity: (busy || !email || !password) ? 0.6 : 1 }}>
+          {busy ? "Entrando..." : "Entrar"}
+        </button>
+
+        <button type="button" onClick={onRecoveryRequest}
+          style={{ background: "none", border: "none", color: "#0f766e", fontSize: 12, cursor: "pointer", marginTop: 2 }}>
+          Esqueci minha senha
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/* ═════════════ RECOVERY REQUEST ═════════════ */
+function RecoveryRequestScreen({ onBack }) {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const [err, setErr] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(""); setMsg(null); setBusy(true);
+    const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: window.location.origin + window.location.pathname,
+    });
+    if (error) setErr(error.message);
+    else setMsg("Se o e-mail existir, um link de recuperação foi enviado.");
+    setBusy(false);
+  };
+
+  return (
+    <div style={{ maxWidth: 380, margin: "80px auto 0", background: "white", borderRadius: 16, border: "1px solid #e2e8f0", padding: 32 }}>
+      <button onClick={onBack} style={{ ...btnGhost, padding: 0, marginBottom: 12, fontSize: 12 }}>← Voltar ao login</button>
+      <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Recuperar senha</h1>
+      <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2, marginBottom: 24 }}>Enviaremos um link para você definir uma nova senha.</p>
+
+      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <label style={lbl}>E-mail</label>
+          <input style={inp} type="email" value={email}
+            onChange={e => setEmail(e.target.value)} placeholder="voce@empresa.com" required />
+        </div>
+
+        {err && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", padding: "8px 12px", borderRadius: 8, fontSize: 12 }}>{err}</div>}
+        {msg && <div style={{ background: "#f0fdfa", border: "1px solid #99f6e4", color: "#0f766e", padding: "8px 12px", borderRadius: 8, fontSize: 12 }}>{msg}</div>}
+
+        <button type="submit" disabled={busy || !email}
+          style={{ ...btnPrimary, padding: "10px 18px", marginTop: 4, opacity: (busy || !email) ? 0.6 : 1 }}>
+          {busy ? "Enviando..." : "Enviar link"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/* ═════════════ UPDATE PASSWORD (após clicar no link) ═════════════ */
+function UpdatePasswordScreen({ onDone }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (password.length < 8) { setErr("A senha precisa ter pelo menos 8 caracteres."); return; }
+    if (password !== confirm) { setErr("As senhas não coincidem."); return; }
+    setErr(""); setBusy(true);
+    const { error } = await sb.auth.updateUser({ password });
+    if (error) { setErr(error.message); setBusy(false); return; }
+    // limpa hash do URL
+    history.replaceState(null, "", window.location.pathname);
+    onDone();
+  };
+
+  return (
+    <div style={{ maxWidth: 380, margin: "80px auto 0", background: "white", borderRadius: 16, border: "1px solid #e2e8f0", padding: 32 }}>
+      <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Definir nova senha</h1>
+      <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2, marginBottom: 24 }}>Mínimo de 8 caracteres.</p>
+
+      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <label style={lbl}>Nova senha</label>
+          <input style={inp} type="password" value={password} autoComplete="new-password"
+            onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={8} />
+        </div>
+        <div>
+          <label style={lbl}>Confirmar senha</label>
+          <input style={inp} type="password" value={confirm} autoComplete="new-password"
+            onChange={e => setConfirm(e.target.value)} placeholder="••••••••" required minLength={8} />
+        </div>
+        {err && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", padding: "8px 12px", borderRadius: 8, fontSize: 12 }}>{err}</div>}
+        <button type="submit" disabled={busy}
+          style={{ ...btnPrimary, padding: "10px 18px", marginTop: 4, opacity: busy ? 0.6 : 1 }}>
+          {busy ? "Salvando..." : "Salvar nova senha"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/* ═════════════ ADMIN PANEL (gestão de usuários) ═════════════ */
+function AdminPanel({ onClose, currentUserId }) {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [info, setInfo] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [newAdmin, setNewAdmin] = useState(false);
+  const [pwdUserId, setPwdUserId] = useState(null);
+  const [pwdValue, setPwdValue] = useState("");
+
+  const load = async () => {
+    setErr(""); setLoading(true);
+    try { const { users } = await callEdge("list_users"); setUsers(users); }
+    catch (e) { setErr(e.message); }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const flash = (text) => { setInfo(text); setTimeout(() => setInfo(""), 2500); };
+
+  const create = async (e) => {
+    e.preventDefault();
+    setErr("");
+    try {
+      await callEdge("create_user", { email: newEmail, password: newPwd, is_admin: newAdmin });
+      setNewEmail(""); setNewPwd(""); setNewAdmin(false); setShowCreate(false);
+      flash("Usuário criado.");
+      load();
+    } catch (e) { setErr(e.message); }
+  };
+
+  const remove = async (u) => {
+    if (!confirm(`Remover ${u.email}? A conta será deletada permanentemente.`)) return;
+    setErr("");
+    try { await callEdge("delete_user", { user_id: u.id }); flash("Usuário removido."); load(); }
+    catch (e) { setErr(e.message); }
+  };
+
+  const sendRecovery = async (u) => {
+    setErr("");
+    try {
+      await callEdge("send_recovery", { email: u.email, redirect_to: window.location.origin + window.location.pathname });
+      flash(`Link de redefinição enviado para ${u.email}.`);
+    } catch (e) { setErr(e.message); }
+  };
+
+  const updatePassword = async (e) => {
+    e.preventDefault();
+    if (pwdValue.length < 8) { setErr("Senha precisa ter pelo menos 8 caracteres."); return; }
+    setErr("");
+    try {
+      await callEdge("update_password", { user_id: pwdUserId, password: pwdValue });
+      setPwdUserId(null); setPwdValue("");
+      flash("Senha atualizada.");
+    } catch (e) { setErr(e.message); }
+  };
+
+  const toggleAdmin = async (u) => {
+    const makeAdmin = !u.is_admin;
+    if (!makeAdmin && u.id === currentUserId) { setErr("Você não pode remover o próprio acesso admin."); return; }
+    if (!confirm(`${makeAdmin ? "Promover" : "Remover acesso admin de"} ${u.email}?`)) return;
+    setErr("");
+    try { await callEdge("toggle_admin", { user_id: u.id, is_admin: makeAdmin }); flash("OK."); load(); }
+    catch (e) { setErr(e.message); }
+  };
+
+  return (
+    <div style={{ maxWidth: 960, margin: "0 auto" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Gerenciar usuários</h1>
+          <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Adicione, remova, redefina senhas e promova admins.</p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setShowCreate(s => !s)} style={btnPrimary}>
+            {showCreate ? "Cancelar" : "+ Novo usuário"}
+          </button>
+          <button onClick={onClose} style={btnGhost}>← Voltar</button>
+        </div>
+      </div>
+
+      {err && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", padding: "8px 12px", borderRadius: 8, fontSize: 12, marginBottom: 12 }}>{err}</div>}
+      {info && <div style={{ background: "#f0fdfa", border: "1px solid #99f6e4", color: "#0f766e", padding: "8px 12px", borderRadius: 8, fontSize: 12, marginBottom: 12 }}>{info}</div>}
+
+      {showCreate && (
+        <form onSubmit={create} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: 18, marginBottom: 16, display: "grid", gridTemplateColumns: "1fr 1fr auto auto", gap: 10, alignItems: "end" }}>
+          <div>
+            <label style={lbl}>E-mail</label>
+            <input style={inp} type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
+          </div>
+          <div>
+            <label style={lbl}>Senha inicial (min. 8)</label>
+            <input style={inp} type="text" value={newPwd} onChange={e => setNewPwd(e.target.value)} required minLength={8} />
+          </div>
+          <label style={{ fontSize: 12, color: "#475569", display: "flex", alignItems: "center", gap: 6, paddingBottom: 10 }}>
+            <input type="checkbox" checked={newAdmin} onChange={e => setNewAdmin(e.target.checked)} /> admin
+          </label>
+          <button type="submit" style={{ ...btnPrimary, padding: "8px 16px" }}>Criar</button>
+        </form>
+      )}
+
+      {loading ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#64748b", fontSize: 13 }}>
+          <div className="spin" /> Carregando usuários...
+        </div>
+      ) : (
+        <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
+          {users.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>Nenhum usuário.</div>
+          ) : users.map((u, idx) => (
+            <div key={u.id} style={{ padding: "14px 18px", borderTop: idx === 0 ? "none" : "1px solid #f1f5f9", display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{u.email}</span>
+                  {u.is_admin && <span style={{ fontSize: 10, background: "#f0fdfa", color: "#0f766e", padding: "2px 8px", borderRadius: 20, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>admin</span>}
+                  {u.id === currentUserId && <span style={{ fontSize: 10, color: "#64748b" }}>(você)</span>}
+                </div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>
+                  Criado: {new Date(u.created_at).toLocaleDateString("pt-BR")} ·{" "}
+                  Último login: {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString("pt-BR") : "—"}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <button onClick={() => toggleAdmin(u)} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 11, cursor: "pointer", color: "#475569" }}>
+                  {u.is_admin ? "Remover admin" : "Promover admin"}
+                </button>
+                <button onClick={() => sendRecovery(u)} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 11, cursor: "pointer", color: "#475569" }}>
+                  Enviar reset
+                </button>
+                <button onClick={() => { setPwdUserId(u.id); setPwdValue(""); }} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 11, cursor: "pointer", color: "#475569" }}>
+                  Trocar senha
+                </button>
+                <button onClick={() => remove(u)} disabled={u.id === currentUserId}
+                  style={{ background: "none", border: "1px solid #fee2e2", borderRadius: 6, padding: "5px 10px", fontSize: 11, cursor: u.id === currentUserId ? "not-allowed" : "pointer", color: "#dc2626", opacity: u.id === currentUserId ? 0.4 : 1 }}>
+                  Remover
+                </button>
+              </div>
+              {pwdUserId === u.id && (
+                <form onSubmit={updatePassword} style={{ gridColumn: "1 / -1", display: "flex", gap: 8, marginTop: 8, paddingTop: 10, borderTop: "1px dashed #e2e8f0" }}>
+                  <input style={{ ...inp, flex: 1 }} type="text" value={pwdValue} onChange={e => setPwdValue(e.target.value)} placeholder="Nova senha (min. 8)" minLength={8} autoFocus />
+                  <button type="submit" style={{ ...btnPrimary, padding: "6px 14px", fontSize: 12 }}>Salvar</button>
+                  <button type="button" onClick={() => setPwdUserId(null)} style={{ ...btnGhost, padding: "6px 10px" }}>Cancelar</button>
+                </form>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═════════════ MAIN APP (templates) ═════════════ */
+function TemplatesApp({ session, isAdmin, onOpenAdmin, onLogout }) {
   const [folders, setFolders]           = useState([]);
   const [templates, setTemplates]       = useState([]);
   const [activeFolder, setActiveFolder] = useState(null);
@@ -66,8 +400,27 @@ function App() {
   const [hovered, setHovered]           = useState(null);
   const quillRef = useRef(null);
 
-  useEffect(() => { loadFolders(); }, []);
-  useEffect(() => { loadTemplates(); }, [activeFolder]);
+  const loadFolders = useCallback(async () => {
+    try {
+      const H = await buildHeaders();
+      const r = await fetch(api("email_folders?select=*&order=created_at.asc"), { headers: H });
+      const d = await r.json();
+      setFolders(Array.isArray(d) ? d : []);
+    } catch(e) {}
+  }, []);
+
+  const loadTemplates = useCallback(async () => {
+    try {
+      const f = activeFolder ? `&folder_id=eq.${activeFolder}` : "";
+      const H = await buildHeaders();
+      const r = await fetch(api(`email_templates?select=*,email_folders(name)&order=created_at.asc${f}`), { headers: H });
+      const d = await r.json();
+      setTemplates(Array.isArray(d) ? d : []);
+    } catch(e) {}
+  }, [activeFolder]);
+
+  useEffect(() => { loadFolders(); }, [loadFolders]);
+  useEffect(() => { loadTemplates(); }, [loadTemplates]);
 
   useEffect(() => {
     if (page === "edit") {
@@ -87,23 +440,7 @@ function App() {
     } else {
       quillRef.current = null;
     }
-  }, [page]);
-
-  const loadFolders = async () => {
-    try {
-      const r = await fetch(api("email_folders?select=*&order=created_at.asc"), { headers: H });
-      setFolders(await r.json());
-    } catch(e) {}
-  };
-
-  const loadTemplates = async () => {
-    try {
-      const f = activeFolder ? `&folder_id=eq.${activeFolder}` : "";
-      const r = await fetch(api(`email_templates?select=*,email_folders(name)&order=created_at.asc${f}`), { headers: H });
-      const d = await r.json();
-      setTemplates(Array.isArray(d) ? d : []);
-    } catch(e) {}
-  };
+  }, [page, editing]);
 
   const saveTemplate = async () => {
     if (!form.name || !form.subject) return;
@@ -112,6 +449,7 @@ function App() {
     setSaving(true);
     const payload = { name: form.name, subject: form.subject, body_html, folder_id: form.folder_id || null };
     try {
+      const H = await buildHeaders();
       if (editing) {
         await fetch(api(`email_templates?id=eq.${editing.id}`), { method: "PATCH", headers: H, body: JSON.stringify(payload) });
       } else {
@@ -126,12 +464,14 @@ function App() {
   const deleteTemplate = async (id, e) => {
     e.stopPropagation();
     if (!confirm("Apagar este template?")) return;
+    const H = await buildHeaders();
     await fetch(api(`email_templates?id=eq.${id}`), { method: "DELETE", headers: H });
     loadTemplates();
   };
 
   const addFolder = async () => {
     if (!newFolderName.trim()) return;
+    const H = await buildHeaders();
     await fetch(api("email_folders"), { method: "POST", headers: H, body: JSON.stringify({ name: newFolderName }) });
     setNewFolderName(""); setShowFolderInput(false); loadFolders();
   };
@@ -139,6 +479,7 @@ function App() {
   const deleteFolder = async (id, e) => {
     e.stopPropagation();
     if (!confirm("Apagar esta pasta? Os templates ficam sem pasta.")) return;
+    const H = await buildHeaders();
     await fetch(api(`email_folders?id=eq.${id}`), { method: "DELETE", headers: H });
     if (activeFolder === id) setActiveFolder(null);
     loadFolders(); loadTemplates();
@@ -164,12 +505,25 @@ function App() {
     setCopied(id); setTimeout(() => setCopied(null), 1800);
   };
 
-  const inp = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none" };
-  const lbl = { fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 };
+  /* ─── HEADER (comum às duas views) ─── */
+  const UserHeader = () => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "#64748b" }}>
+      <span style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.user.email}</span>
+      {isAdmin && (
+        <button onClick={onOpenAdmin} style={{ background: "#f0fdfa", border: "1px solid #99f6e4", color: "#0f766e", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+          Usuários
+        </button>
+      )}
+      <button onClick={onLogout} style={{ background: "none", border: "1px solid #e2e8f0", color: "#64748b", borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer" }}>
+        Sair
+      </button>
+    </div>
+  );
 
   /* ─── EDIT PAGE ─── */
   if (page === "edit") return (
     <div style={{ maxWidth: 800, margin: "0 auto" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}><UserHeader /></div>
       <div style={{ background: "white", borderRadius: 16, border: "1px solid #e2e8f0", overflow: "hidden" }}>
 
         <div style={{ padding: "16px 24px", borderBottom: "1px solid #f0f4f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -238,9 +592,10 @@ function App() {
           <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Email Templates</h1>
           <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>NPB Digital — Felipe Sempe</p>
         </div>
-        <button onClick={openCreate} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-          + Novo template
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <UserHeader />
+          <button onClick={openCreate} style={btnPrimary}>+ Novo template</button>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
@@ -333,7 +688,82 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+/* ═════════════ ROOT ═════════════ */
+function Root() {
+  const [session, setSession]         = useState(null);
+  const [ready, setReady]             = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [showRecoveryReq, setShowRecoveryReq] = useState(false);
+  const [isAdmin, setIsAdmin]         = useState(false);
+  const [viewingAdmin, setViewingAdmin] = useState(false);
+
+  useEffect(() => {
+    sb.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); });
+    const { data: sub } = sb.auth.onAuthStateChange((event, newSession) => {
+      setSession(newSession);
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
+      if (event === "SIGNED_OUT") { setIsAdmin(false); setViewingAdmin(false); setRecoveryMode(false); }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // Verifica se o user logado é admin
+  useEffect(() => {
+    let cancelled = false;
+    if (session && !recoveryMode) {
+      (async () => {
+        try {
+          const { data, error } = await sb
+            .from("email_template_admins")
+            .select("user_id")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+          if (!cancelled) setIsAdmin(!error && !!data);
+        } catch { if (!cancelled) setIsAdmin(false); }
+      })();
+    } else {
+      setIsAdmin(false);
+    }
+    return () => { cancelled = true; };
+  }, [session, recoveryMode]);
+
+  const logout = async () => {
+    await sb.auth.signOut();
+  };
+
+  if (!ready) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+        <div className="spin" />
+      </div>
+    );
+  }
+
+  // Se o usuário clicou no link de recovery: mostrar tela de nova senha
+  if (session && recoveryMode) {
+    return <UpdatePasswordScreen onDone={() => setRecoveryMode(false)} />;
+  }
+
+  if (!session) {
+    if (showRecoveryReq) return <RecoveryRequestScreen onBack={() => setShowRecoveryReq(false)} />;
+    return <LoginScreen onRecoveryRequest={() => setShowRecoveryReq(true)} />;
+  }
+
+  if (viewingAdmin && isAdmin) {
+    return <AdminPanel onClose={() => setViewingAdmin(false)} currentUserId={session.user.id} />;
+  }
+
+  return (
+    <TemplatesApp
+      session={session}
+      isAdmin={isAdmin}
+      onOpenAdmin={() => setViewingAdmin(true)}
+      onLogout={logout}
+    />
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<Root />);
 </script>
 </body>
 </html>
