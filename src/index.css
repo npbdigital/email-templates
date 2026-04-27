@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  min-height: 100vh;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+input, select, button, textarea {
+  font-family: inherit;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+
+.ql-container {
+  font-family: inherit;
+  font-size: 14px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border-color: #e2e8f0 !important;
+}
+
+.ql-toolbar {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-color: #e2e8f0 !important;
+  background: #f8fafc;
+}
+
+.ql-toolbar.ql-snow { padding: 8px; }
+
+.ql-editor {
+  min-height: 260px;
+  max-height: 420px;
+  overflow-y: auto;
+  line-height: 1.7;
+}
+
+.ql-snow .ql-stroke { stroke: #475569; }
+.ql-snow .ql-fill { fill: #475569; }
+.ql-snow button:hover .ql-stroke { stroke: #0f766e; }
+.ql-snow button.ql-active .ql-stroke { stroke: #0f766e; }
