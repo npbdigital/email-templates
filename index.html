@@ -6,764 +6,513 @@
   <title>Email Templates — NPB Digital</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; min-height: 100vh; padding: 24px; }
-    input, select, button { font-family: inherit; }
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
-
-    .ql-container { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; border-color: #e2e8f0 !important; }
+    input, select, button, textarea { font-family: inherit; }
+    ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+    .ql-container { font-family: inherit; font-size: 14px; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; border-color: #e2e8f0 !important; }
     .ql-toolbar { border-top-left-radius: 8px; border-top-right-radius: 8px; border-color: #e2e8f0 !important; background: #f8fafc; }
     .ql-toolbar.ql-snow { padding: 8px; }
     .ql-editor { min-height: 260px; max-height: 420px; overflow-y: auto; line-height: 1.7; }
-    .ql-editor p { margin-bottom: 6px; }
-    .ql-snow .ql-stroke { stroke: #475569; }
-    .ql-snow .ql-fill { fill: #475569; }
-    .ql-snow .ql-picker-label { color: #475569; }
-    .ql-snow button:hover .ql-stroke, .ql-snow .ql-picker-label:hover .ql-stroke { stroke: #0f766e; }
-    .ql-snow button:hover .ql-fill { fill: #0f766e; }
-    .ql-snow button.ql-active .ql-stroke { stroke: #0f766e; }
-    .ql-snow button.ql-active .ql-fill { fill: #0f766e; }
-    .ql-snow .ql-picker.ql-expanded .ql-picker-options { border-color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-radius: 6px; }
-
-    .spin { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #0f766e; border-radius: 50%; animation: sp 0.6s linear infinite; }
-    @keyframes sp { to { transform: rotate(360deg); } }
+    .ql-snow .ql-stroke { stroke: #475569; } .ql-snow .ql-fill { fill: #475569; }
+    .ql-snow button:hover .ql-stroke { stroke: #0f766e; } .ql-snow button.ql-active .ql-stroke { stroke: #0f766e; }
   </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef, useCallback } = React;
+const { useState, useEffect, useRef } = React;
 
-const SUPABASE_URL = "https://hblyregbowxaxzpnerhf.supabase.co";
-const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhibHlyZWdib3d4YXh6cG5lcmhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTgwMjIsImV4cCI6MjA4NTczNDAyMn0.VZYeyTpJAtjWA0SbxQkEh-vwIy8MxLYPSgIgIrt8oSc";
-
-const sb = window.supabase.createClient(SUPABASE_URL, ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "implicit" }
-});
-
-const api = path => `${SUPABASE_URL}/rest/v1/${path}`;
-
-const buildHeaders = async () => {
-  const { data } = await sb.auth.getSession();
-  const token = data.session?.access_token || ANON_KEY;
-  return {
-    "apikey": ANON_KEY,
-    "Authorization": `Bearer ${token}`,
-    "Content-Type": "application/json",
-    "Prefer": "return=representation"
-  };
-};
-
-const callEdge = async (action, params = {}) => {
-  const { data } = await sb.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) throw new Error("Sessão expirada — faça login novamente.");
-  const r = await fetch(`${SUPABASE_URL}/functions/v1/email_admin_users`, {
-    method: "POST",
-    headers: {
-      "apikey": ANON_KEY,
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ action, params }),
-  });
-  const body = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(body?.error || `HTTP ${r.status}`);
-  return body;
-};
+const SB_URL = "https://hblyregbowxaxzpnerhf.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhibHlyZWdib3d4YXh6cG5lcmhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTgwMjIsImV4cCI6MjA4NTczNDAyMn0.VZYeyTpJAtjWA0SbxQkEh-vwIy8MxLYPSgIgIrt8oSc";
+const H = { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Content-Type": "application/json", "Prefer": "return=representation" };
+const api = p => `${SB_URL}/rest/v1/${p}`;
 
 const TOOLBAR = [
-  [{ header: [1, 2, 3, false] }],
-  ["bold", "italic", "underline", "strike"],
-  [{ color: [] }, { background: [] }],
-  [{ align: [] }],
-  [{ list: "ordered" }, { list: "bullet" }],
-  [{ indent: "-1" }, { indent: "+1" }],
-  ["link", "image"],
-  ["clean"]
+  [{ header: [1,2,3,false] }], ["bold","italic","underline","strike"],
+  [{ color: [] }, { background: [] }], [{ align: [] }],
+  [{ list: "ordered" }, { list: "bullet" }], ["link","image"], ["clean"]
 ];
 
-const inp = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none" };
-const lbl = { fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 };
-const btnPrimary = { background: "#0f766e", color: "white", border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13, fontWeight: 500, cursor: "pointer" };
-const btnGhost = { background: "none", border: "none", color: "#64748b", fontSize: 13, cursor: "pointer", padding: "9px 12px" };
+const EVENT_LABELS = { sent:'Enviado', delivered:'Entregue', opened:'Aberto', clicked:'Clicou', hardBounce:'Hard Bounce', softBounce:'Soft Bounce', unsubscribed:'Descadastro', spam:'Spam' };
+const EVENT_COLORS = { sent:'#64748b', delivered:'#0f766e', opened:'#0284c7', clicked:'#7c3aed', hardBounce:'#dc2626', softBounce:'#f59e0b', unsubscribed:'#94a3b8', spam:'#ef4444' };
 
-/* ═════════════ LOGIN ═════════════ */
-function LoginScreen({ onRecoveryRequest }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setError(""); setBusy(true);
-    const { error } = await sb.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
-    if (error) setError(error.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : error.message);
-    setBusy(false);
-  };
-
-  return (
-    <div style={{ maxWidth: 380, margin: "80px auto 0", background: "white", borderRadius: 16, border: "1px solid #e2e8f0", padding: 32 }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Email Templates</h1>
-      <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2, marginBottom: 24 }}>NPB Digital — Felipe Sempe</p>
-
-      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div>
-          <label style={lbl}>E-mail</label>
-          <input style={inp} type="email" value={email} autoComplete="username"
-            onChange={e => setEmail(e.target.value)} placeholder="voce@empresa.com" required />
-        </div>
-        <div>
-          <label style={lbl}>Senha</label>
-          <input style={inp} type="password" value={password} autoComplete="current-password"
-            onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
-        </div>
-
-        {error && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", padding: "8px 12px", borderRadius: 8, fontSize: 12 }}>{error}</div>}
-
-        <button type="submit" disabled={busy || !email || !password}
-          style={{ ...btnPrimary, padding: "10px 18px", marginTop: 4, opacity: (busy || !email || !password) ? 0.6 : 1 }}>
-          {busy ? "Entrando..." : "Entrar"}
-        </button>
-
-        <button type="button" onClick={onRecoveryRequest}
-          style={{ background: "none", border: "none", color: "#0f766e", fontSize: 12, cursor: "pointer", marginTop: 2 }}>
-          Esqueci minha senha
-        </button>
-      </form>
-    </div>
-  );
-}
-
-/* ═════════════ RECOVERY REQUEST ═════════════ */
-function RecoveryRequestScreen({ onBack }) {
-  const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
-  const [err, setErr] = useState("");
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setErr(""); setMsg(null); setBusy(true);
-    const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: window.location.origin + window.location.pathname,
-    });
-    if (error) setErr(error.message);
-    else setMsg("Se o e-mail existir, um link de recuperação foi enviado.");
-    setBusy(false);
-  };
-
-  return (
-    <div style={{ maxWidth: 380, margin: "80px auto 0", background: "white", borderRadius: 16, border: "1px solid #e2e8f0", padding: 32 }}>
-      <button onClick={onBack} style={{ ...btnGhost, padding: 0, marginBottom: 12, fontSize: 12 }}>← Voltar ao login</button>
-      <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Recuperar senha</h1>
-      <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2, marginBottom: 24 }}>Enviaremos um link para você definir uma nova senha.</p>
-
-      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div>
-          <label style={lbl}>E-mail</label>
-          <input style={inp} type="email" value={email}
-            onChange={e => setEmail(e.target.value)} placeholder="voce@empresa.com" required />
-        </div>
-
-        {err && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", padding: "8px 12px", borderRadius: 8, fontSize: 12 }}>{err}</div>}
-        {msg && <div style={{ background: "#f0fdfa", border: "1px solid #99f6e4", color: "#0f766e", padding: "8px 12px", borderRadius: 8, fontSize: 12 }}>{msg}</div>}
-
-        <button type="submit" disabled={busy || !email}
-          style={{ ...btnPrimary, padding: "10px 18px", marginTop: 4, opacity: (busy || !email) ? 0.6 : 1 }}>
-          {busy ? "Enviando..." : "Enviar link"}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-/* ═════════════ UPDATE PASSWORD (após clicar no link) ═════════════ */
-function UpdatePasswordScreen({ onDone }) {
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-
-  const submit = async (e) => {
-    e.preventDefault();
-    if (password.length < 8) { setErr("A senha precisa ter pelo menos 8 caracteres."); return; }
-    if (password !== confirm) { setErr("As senhas não coincidem."); return; }
-    setErr(""); setBusy(true);
-    const { error } = await sb.auth.updateUser({ password });
-    if (error) { setErr(error.message); setBusy(false); return; }
-    // limpa hash do URL
-    history.replaceState(null, "", window.location.pathname);
-    onDone();
-  };
-
-  return (
-    <div style={{ maxWidth: 380, margin: "80px auto 0", background: "white", borderRadius: 16, border: "1px solid #e2e8f0", padding: 32 }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Definir nova senha</h1>
-      <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2, marginBottom: 24 }}>Mínimo de 8 caracteres.</p>
-
-      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div>
-          <label style={lbl}>Nova senha</label>
-          <input style={inp} type="password" value={password} autoComplete="new-password"
-            onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={8} />
-        </div>
-        <div>
-          <label style={lbl}>Confirmar senha</label>
-          <input style={inp} type="password" value={confirm} autoComplete="new-password"
-            onChange={e => setConfirm(e.target.value)} placeholder="••••••••" required minLength={8} />
-        </div>
-        {err && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", padding: "8px 12px", borderRadius: 8, fontSize: 12 }}>{err}</div>}
-        <button type="submit" disabled={busy}
-          style={{ ...btnPrimary, padding: "10px 18px", marginTop: 4, opacity: busy ? 0.6 : 1 }}>
-          {busy ? "Salvando..." : "Salvar nova senha"}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-/* ═════════════ ADMIN PANEL (gestão de usuários) ═════════════ */
-function AdminPanel({ onClose, currentUserId }) {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-  const [info, setInfo] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
-  const [newEmail, setNewEmail] = useState("");
-  const [newPwd, setNewPwd] = useState("");
-  const [newAdmin, setNewAdmin] = useState(false);
-  const [pwdUserId, setPwdUserId] = useState(null);
-  const [pwdValue, setPwdValue] = useState("");
-
-  const load = async () => {
-    setErr(""); setLoading(true);
-    try { const { users } = await callEdge("list_users"); setUsers(users); }
-    catch (e) { setErr(e.message); }
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
-
-  const flash = (text) => { setInfo(text); setTimeout(() => setInfo(""), 2500); };
-
-  const create = async (e) => {
-    e.preventDefault();
-    setErr("");
-    try {
-      await callEdge("create_user", { email: newEmail, password: newPwd, is_admin: newAdmin });
-      setNewEmail(""); setNewPwd(""); setNewAdmin(false); setShowCreate(false);
-      flash("Usuário criado.");
-      load();
-    } catch (e) { setErr(e.message); }
-  };
-
-  const remove = async (u) => {
-    if (!confirm(`Remover ${u.email}? A conta será deletada permanentemente.`)) return;
-    setErr("");
-    try { await callEdge("delete_user", { user_id: u.id }); flash("Usuário removido."); load(); }
-    catch (e) { setErr(e.message); }
-  };
-
-  const sendRecovery = async (u) => {
-    setErr("");
-    try {
-      await callEdge("send_recovery", { email: u.email, redirect_to: window.location.origin + window.location.pathname });
-      flash(`Link de redefinição enviado para ${u.email}.`);
-    } catch (e) { setErr(e.message); }
-  };
-
-  const updatePassword = async (e) => {
-    e.preventDefault();
-    if (pwdValue.length < 8) { setErr("Senha precisa ter pelo menos 8 caracteres."); return; }
-    setErr("");
-    try {
-      await callEdge("update_password", { user_id: pwdUserId, password: pwdValue });
-      setPwdUserId(null); setPwdValue("");
-      flash("Senha atualizada.");
-    } catch (e) { setErr(e.message); }
-  };
-
-  const toggleAdmin = async (u) => {
-    const makeAdmin = !u.is_admin;
-    if (!makeAdmin && u.id === currentUserId) { setErr("Você não pode remover o próprio acesso admin."); return; }
-    if (!confirm(`${makeAdmin ? "Promover" : "Remover acesso admin de"} ${u.email}?`)) return;
-    setErr("");
-    try { await callEdge("toggle_admin", { user_id: u.id, is_admin: makeAdmin }); flash("OK."); load(); }
-    catch (e) { setErr(e.message); }
-  };
-
-  return (
-    <div style={{ maxWidth: 960, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Gerenciar usuários</h1>
-          <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Adicione, remova, redefina senhas e promova admins.</p>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setShowCreate(s => !s)} style={btnPrimary}>
-            {showCreate ? "Cancelar" : "+ Novo usuário"}
-          </button>
-          <button onClick={onClose} style={btnGhost}>← Voltar</button>
-        </div>
-      </div>
-
-      {err && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", padding: "8px 12px", borderRadius: 8, fontSize: 12, marginBottom: 12 }}>{err}</div>}
-      {info && <div style={{ background: "#f0fdfa", border: "1px solid #99f6e4", color: "#0f766e", padding: "8px 12px", borderRadius: 8, fontSize: 12, marginBottom: 12 }}>{info}</div>}
-
-      {showCreate && (
-        <form onSubmit={create} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: 18, marginBottom: 16, display: "grid", gridTemplateColumns: "1fr 1fr auto auto", gap: 10, alignItems: "end" }}>
-          <div>
-            <label style={lbl}>E-mail</label>
-            <input style={inp} type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
-          </div>
-          <div>
-            <label style={lbl}>Senha inicial (min. 8)</label>
-            <input style={inp} type="text" value={newPwd} onChange={e => setNewPwd(e.target.value)} required minLength={8} />
-          </div>
-          <label style={{ fontSize: 12, color: "#475569", display: "flex", alignItems: "center", gap: 6, paddingBottom: 10 }}>
-            <input type="checkbox" checked={newAdmin} onChange={e => setNewAdmin(e.target.checked)} /> admin
-          </label>
-          <button type="submit" style={{ ...btnPrimary, padding: "8px 16px" }}>Criar</button>
-        </form>
-      )}
-
-      {loading ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#64748b", fontSize: 13 }}>
-          <div className="spin" /> Carregando usuários...
-        </div>
-      ) : (
-        <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
-          {users.length === 0 ? (
-            <div style={{ padding: 24, textAlign: "center", fontSize: 13, color: "#94a3b8" }}>Nenhum usuário.</div>
-          ) : users.map((u, idx) => (
-            <div key={u.id} style={{ padding: "14px 18px", borderTop: idx === 0 ? "none" : "1px solid #f1f5f9", display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center" }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{u.email}</span>
-                  {u.is_admin && <span style={{ fontSize: 10, background: "#f0fdfa", color: "#0f766e", padding: "2px 8px", borderRadius: 20, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>admin</span>}
-                  {u.id === currentUserId && <span style={{ fontSize: 10, color: "#64748b" }}>(você)</span>}
-                </div>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>
-                  Criado: {new Date(u.created_at).toLocaleDateString("pt-BR")} ·{" "}
-                  Último login: {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString("pt-BR") : "—"}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                <button onClick={() => toggleAdmin(u)} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 11, cursor: "pointer", color: "#475569" }}>
-                  {u.is_admin ? "Remover admin" : "Promover admin"}
-                </button>
-                <button onClick={() => sendRecovery(u)} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 11, cursor: "pointer", color: "#475569" }}>
-                  Enviar reset
-                </button>
-                <button onClick={() => { setPwdUserId(u.id); setPwdValue(""); }} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 11, cursor: "pointer", color: "#475569" }}>
-                  Trocar senha
-                </button>
-                <button onClick={() => remove(u)} disabled={u.id === currentUserId}
-                  style={{ background: "none", border: "1px solid #fee2e2", borderRadius: 6, padding: "5px 10px", fontSize: 11, cursor: u.id === currentUserId ? "not-allowed" : "pointer", color: "#dc2626", opacity: u.id === currentUserId ? 0.4 : 1 }}>
-                  Remover
-                </button>
-              </div>
-              {pwdUserId === u.id && (
-                <form onSubmit={updatePassword} style={{ gridColumn: "1 / -1", display: "flex", gap: 8, marginTop: 8, paddingTop: 10, borderTop: "1px dashed #e2e8f0" }}>
-                  <input style={{ ...inp, flex: 1 }} type="text" value={pwdValue} onChange={e => setPwdValue(e.target.value)} placeholder="Nova senha (min. 8)" minLength={8} autoFocus />
-                  <button type="submit" style={{ ...btnPrimary, padding: "6px 14px", fontSize: 12 }}>Salvar</button>
-                  <button type="button" onClick={() => setPwdUserId(null)} style={{ ...btnGhost, padding: "6px 10px" }}>Cancelar</button>
-                </form>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ═════════════ MAIN APP (templates) ═════════════ */
-function TemplatesApp({ session, isAdmin, onOpenAdmin, onLogout }) {
-  const [folders, setFolders]           = useState([]);
-  const [templates, setTemplates]       = useState([]);
+function App() {
+  const [tab, setTab] = useState('templates');
+  const [folders, setFolders] = useState([]);
+  const [templates, setTemplates] = useState([]);
   const [activeFolder, setActiveFolder] = useState(null);
-  const [page, setPage]                 = useState("list");
-  const [editing, setEditing]           = useState(null);
-  const [form, setForm]                 = useState({ name: "", subject: "", folder_id: null });
-  const [newFolderName, setNewFolderName] = useState("");
+  const [page, setPage] = useState('list');
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ name:'', subject:'', folder_id:null });
+  const [newFolderName, setNewFolderName] = useState('');
   const [showFolderInput, setShowFolderInput] = useState(false);
-  const [copied, setCopied]             = useState(null);
-  const [saving, setSaving]             = useState(false);
-  const [hovered, setHovered]           = useState(null);
+  const [copied, setCopied] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [hovered, setHovered] = useState(null);
   const quillRef = useRef(null);
 
-  const loadFolders = useCallback(async () => {
-    try {
-      const H = await buildHeaders();
-      const r = await fetch(api("email_folders?select=*&order=created_at.asc"), { headers: H });
-      const d = await r.json();
-      setFolders(Array.isArray(d) ? d : []);
-    } catch(e) {}
-  }, []);
+  // Metrics state
+  const [metrics, setMetrics] = useState({ totals: {}, byDate: [], byTemplate: [], events: [] });
+  const [metricDays, setMetricDays] = useState(7);
+  const [metricTemplate, setMetricTemplate] = useState('');
+  const [metricLoading, setMetricLoading] = useState(false);
+  const [eventPage, setEventPage] = useState(0);
+  const EVENT_PAGE_SIZE = 20;
 
-  const loadTemplates = useCallback(async () => {
+  useEffect(() => { loadFolders(); }, []);
+  useEffect(() => { loadTemplates(); }, [activeFolder]);
+  useEffect(() => { if (tab === 'metrics') loadMetrics(); }, [tab, metricDays, metricTemplate]);
+
+  const loadFolders = async () => {
+    try { const r = await fetch(api("email_folders?select=*&order=created_at.asc"), { headers: H }); setFolders(await r.json()); } catch(e) {}
+  };
+  const loadTemplates = async () => {
     try {
-      const f = activeFolder ? `&folder_id=eq.${activeFolder}` : "";
-      const H = await buildHeaders();
+      const f = activeFolder ? `&folder_id=eq.${activeFolder}` : '';
       const r = await fetch(api(`email_templates?select=*,email_folders(name)&order=created_at.asc${f}`), { headers: H });
-      const d = await r.json();
-      setTemplates(Array.isArray(d) ? d : []);
+      const d = await r.json(); setTemplates(Array.isArray(d) ? d : []);
     } catch(e) {}
-  }, [activeFolder]);
+  };
 
-  useEffect(() => { loadFolders(); }, [loadFolders]);
-  useEffect(() => { loadTemplates(); }, [loadTemplates]);
+  const loadMetrics = async () => {
+    setMetricLoading(true);
+    try {
+      const since = new Date(); since.setDate(since.getDate() - metricDays);
+      const sinceISO = since.toISOString();
+      let q = `email_events?select=*&event_date=gte.${sinceISO}&order=event_date.desc`;
+      if (metricTemplate) q += `&template_id=eq.${metricTemplate}`;
 
-  useEffect(() => {
-    if (page === "edit") {
-      setTimeout(() => {
-        const el = document.getElementById("quill-mount");
-        if (!el || quillRef.current) return;
-        quillRef.current = new Quill("#quill-mount", {
-          theme: "snow",
-          modules: { toolbar: TOOLBAR },
-          placeholder: "Escreva o corpo do e-mail aqui..."
-        });
-        const initialHtml = editing
-          ? (editing.body_html || "")
-          : "<p>Oi <strong>{{nome}}</strong>,</p><p><br></p><p>Sua mensagem aqui.</p><p><br></p><p>Felipe</p>";
-        quillRef.current.root.innerHTML = initialHtml;
-      }, 80);
-    } else {
-      quillRef.current = null;
-    }
-  }, [page, editing]);
+      const r = await fetch(api(q + '&limit=1000'), { headers: H });
+      const events = await r.json();
+      if (!Array.isArray(events)) { setMetricLoading(false); return; }
+
+      // Totals
+      const totals = {};
+      events.forEach(e => { totals[e.event_type] = (totals[e.event_type] || 0) + 1; });
+
+      // By date
+      const dateMap = {};
+      events.forEach(e => {
+        const d = e.event_date?.slice(0,10);
+        if (!d) return;
+        if (!dateMap[d]) dateMap[d] = { date: d, sent:0, delivered:0, opened:0, clicked:0 };
+        if (['sent','delivered','opened','clicked'].includes(e.event_type)) dateMap[d][e.event_type]++;
+      });
+      const byDate = Object.values(dateMap).sort((a,b) => a.date > b.date ? 1 : -1);
+
+      // By template
+      const tplMap = {};
+      events.forEach(e => {
+        const k = e.template_name || e.template_id || 'Sem template';
+        if (!tplMap[k]) tplMap[k] = { name: k, sent:0, delivered:0, opened:0, clicked:0 };
+        if (['sent','delivered','opened','clicked'].includes(e.event_type)) tplMap[k][e.event_type]++;
+      });
+      const byTemplate = Object.values(tplMap).sort((a,b) => b.sent - a.sent);
+
+      setMetrics({ totals, byDate, byTemplate, events });
+      setEventPage(0);
+    } catch(e) {}
+    setMetricLoading(false);
+  };
 
   const saveTemplate = async () => {
     if (!form.name || !form.subject) return;
-    const body_html = quillRef.current ? quillRef.current.root.innerHTML : "";
-    if (!body_html || body_html === "<p><br></p>") { alert("O corpo do e-mail está vazio."); return; }
+    const body_html = quillRef.current ? quillRef.current.root.innerHTML : '';
+    if (!body_html || body_html === '<p><br></p>') { alert('O corpo do e-mail está vazio.'); return; }
     setSaving(true);
     const payload = { name: form.name, subject: form.subject, body_html, folder_id: form.folder_id || null };
     try {
-      const H = await buildHeaders();
-      if (editing) {
-        await fetch(api(`email_templates?id=eq.${editing.id}`), { method: "PATCH", headers: H, body: JSON.stringify(payload) });
-      } else {
-        await fetch(api("email_templates"), { method: "POST", headers: H, body: JSON.stringify(payload) });
-      }
-      quillRef.current = null;
-      setPage("list"); loadTemplates();
+      if (editing) await fetch(api(`email_templates?id=eq.${editing.id}`), { method:'PATCH', headers: H, body: JSON.stringify(payload) });
+      else await fetch(api('email_templates'), { method:'POST', headers: H, body: JSON.stringify(payload) });
+      quillRef.current = null; setPage('list'); loadTemplates();
     } catch(e) {}
     setSaving(false);
   };
 
   const deleteTemplate = async (id, e) => {
     e.stopPropagation();
-    if (!confirm("Apagar este template?")) return;
-    const H = await buildHeaders();
-    await fetch(api(`email_templates?id=eq.${id}`), { method: "DELETE", headers: H });
+    if (!confirm('Apagar este template?')) return;
+    await fetch(api(`email_templates?id=eq.${id}`), { method:'DELETE', headers: H });
     loadTemplates();
   };
 
   const addFolder = async () => {
     if (!newFolderName.trim()) return;
-    const H = await buildHeaders();
-    await fetch(api("email_folders"), { method: "POST", headers: H, body: JSON.stringify({ name: newFolderName }) });
-    setNewFolderName(""); setShowFolderInput(false); loadFolders();
+    await fetch(api('email_folders'), { method:'POST', headers: H, body: JSON.stringify({ name: newFolderName }) });
+    setNewFolderName(''); setShowFolderInput(false); loadFolders();
   };
 
   const deleteFolder = async (id, e) => {
     e.stopPropagation();
-    if (!confirm("Apagar esta pasta? Os templates ficam sem pasta.")) return;
-    const H = await buildHeaders();
-    await fetch(api(`email_folders?id=eq.${id}`), { method: "DELETE", headers: H });
+    if (!confirm('Apagar esta pasta?')) return;
+    await fetch(api(`email_folders?id=eq.${id}`), { method:'DELETE', headers: H });
     if (activeFolder === id) setActiveFolder(null);
     loadFolders(); loadTemplates();
   };
 
   const openCreate = () => {
     setEditing(null); quillRef.current = null;
-    setForm({ name: "", subject: "", folder_id: activeFolder });
-    setPage("edit");
+    setForm({ name:'', subject:'', folder_id: activeFolder }); setPage('edit');
   };
-
   const openEdit = t => {
     setEditing(t); quillRef.current = null;
-    setForm({ name: t.name, subject: t.subject, folder_id: t.folder_id });
-    setPage("edit");
+    setForm({ name: t.name, subject: t.subject, folder_id: t.folder_id }); setPage('edit');
   };
-
-  const goBack = () => { quillRef.current = null; setPage("list"); loadTemplates(); };
-
+  const goBack = () => { quillRef.current = null; setPage('list'); loadTemplates(); };
   const copyId = (id, e) => {
     if (e) e.stopPropagation();
-    navigator.clipboard?.writeText(id);
-    setCopied(id); setTimeout(() => setCopied(null), 1800);
+    navigator.clipboard?.writeText(id); setCopied(id); setTimeout(() => setCopied(null), 1800);
   };
 
-  /* ─── HEADER (comum às duas views) ─── */
-  const UserHeader = () => (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "#64748b" }}>
-      <span style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.user.email}</span>
-      {isAdmin && (
-        <button onClick={onOpenAdmin} style={{ background: "#f0fdfa", border: "1px solid #99f6e4", color: "#0f766e", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-          Usuários
-        </button>
-      )}
-      <button onClick={onLogout} style={{ background: "none", border: "1px solid #e2e8f0", color: "#64748b", borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer" }}>
-        Sair
-      </button>
-    </div>
-  );
+  useEffect(() => {
+    if (page === 'edit') {
+      setTimeout(() => {
+        const el = document.getElementById('quill-mount');
+        if (!el || quillRef.current) return;
+        quillRef.current = new Quill('#quill-mount', { theme:'snow', modules:{ toolbar: TOOLBAR }, placeholder:'Escreva o corpo do e-mail aqui...' });
+        quillRef.current.root.innerHTML = editing ? (editing.body_html || '') : '<p>Oi <strong>{{nome}}</strong>,</p><p><br></p><p>Sua mensagem aqui.</p><p><br></p><p>Felipe</p>';
+      }, 80);
+    } else { quillRef.current = null; }
+  }, [page]);
 
-  /* ─── EDIT PAGE ─── */
-  if (page === "edit") return (
-    <div style={{ maxWidth: 800, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}><UserHeader /></div>
-      <div style={{ background: "white", borderRadius: 16, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+  const inp = { width:'100%', border:'1px solid #e2e8f0', borderRadius:8, padding:'8px 12px', fontSize:13, outline:'none' };
+  const lbl = { fontSize:11, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:6 };
 
-        <div style={{ padding: "16px 24px", borderBottom: "1px solid #f0f4f8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button onClick={goBack} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 13 }}>← Voltar</button>
-            <span style={{ color: "#e2e8f0" }}>|</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{editing ? "Editar template" : "Novo template"}</span>
+  const pct = (n, d) => d > 0 ? ((n/d)*100).toFixed(1) + '%' : '—';
+  const maxVal = arr => arr.length ? Math.max(...arr.map(d => Math.max(d.sent||0, d.opened||0, d.clicked||0))) : 1;
+
+  // ─── EDIT PAGE ───
+  if (page === 'edit') return (
+    <div style={{ maxWidth:800, margin:'0 auto' }}>
+      <div style={{ background:'white', borderRadius:16, border:'1px solid #e2e8f0', overflow:'hidden' }}>
+        <div style={{ padding:'16px 24px', borderBottom:'1px solid #f0f4f8', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <button onClick={goBack} style={{ background:'none', border:'none', cursor:'pointer', color:'#64748b', fontSize:13 }}>← Voltar</button>
+            <span style={{ color:'#e2e8f0' }}>|</span>
+            <span style={{ fontSize:14, fontWeight:600, color:'#1e293b' }}>{editing ? 'Editar template' : 'Novo template'}</span>
           </div>
           {editing && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <code style={{ fontSize: 11, color: "#94a3b8" }}>{editing.id}</code>
-              <button onClick={e => copyId(editing.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#0f766e", fontSize: 11, fontWeight: 600 }}>
-                {copied === editing.id ? "✓ Copiado!" : "Copiar ID"}
-              </button>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <code style={{ fontSize:11, color:'#94a3b8' }}>{editing.id}</code>
+              <button onClick={e => copyId(editing.id, e)} style={{ background:'none', border:'none', cursor:'pointer', color:'#0f766e', fontSize:11, fontWeight:600 }}>{copied === editing.id ? '✓ Copiado!' : 'Copiar ID'}</button>
             </div>
           )}
         </div>
-
-        <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <div>
-              <label style={lbl}>Nome interno</label>
-              <input style={inp} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Ex: Webnário — lembrete 30min" />
-            </div>
-            <div>
-              <label style={lbl}>Pasta</label>
-              <select style={{...inp, background: "white"}} value={form.folder_id || ""} onChange={e => setForm({...form, folder_id: e.target.value || null})}>
+        <div style={{ padding:24, display:'flex', flexDirection:'column', gap:18 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+            <div><label style={lbl}>Nome interno</label><input style={inp} value={form.name} onChange={e => setForm({...form, name:e.target.value})} placeholder="Ex: Webnário — lembrete 30min" /></div>
+            <div><label style={lbl}>Pasta</label>
+              <select style={{...inp, background:'white'}} value={form.folder_id||''} onChange={e => setForm({...form, folder_id:e.target.value||null})}>
                 <option value="">Sem pasta</option>
                 {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </div>
           </div>
-
-          <div>
-            <label style={lbl}>Assunto do e-mail</label>
-            <input style={inp} value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} placeholder='Ex: {{nome}}, sua aula começa em 30 minutos' />
-          </div>
-
+          <div><label style={lbl}>Assunto do e-mail</label><input style={inp} value={form.subject} onChange={e => setForm({...form, subject:e.target.value})} placeholder='Ex: {{nome}}, sua aula começa em 30 minutos' /></div>
           <div>
             <label style={lbl}>Corpo do e-mail</label>
             <div id="quill-mount"></div>
-            <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>
-              Use <code style={{ background: "#f1f5f9", padding: "1px 5px", borderRadius: 4 }}>{"{{nome}}"}</code> e <code style={{ background: "#f1f5f9", padding: "1px 5px", borderRadius: 4 }}>{"{{email}}"}</code> para personalizar com dados do lead. Para imagens, use o botão de imagem e cole a URL.
-            </p>
+            <p style={{ fontSize:11, color:'#94a3b8', marginTop:6 }}>Use <code style={{ background:'#f1f5f9', padding:'1px 5px', borderRadius:4 }}>{'{{nome}}'}</code>, <code style={{ background:'#f1f5f9', padding:'1px 5px', borderRadius:4 }}>{'{{email}}'}</code>, <code style={{ background:'#f1f5f9', padding:'1px 5px', borderRadius:4 }}>{'{{link_registro}}'}</code></p>
           </div>
-
-          <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-            <button onClick={saveTemplate} disabled={!form.name || !form.subject || saving}
-              style={{ background: (!form.name || !form.subject || saving) ? "#94a3b8" : "#0f766e", color: "white", border: "none", borderRadius: 8, padding: "9px 22px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-              {saving ? "Salvando..." : "Salvar template"}
+          <div style={{ display:'flex', gap:10, paddingTop:4 }}>
+            <button onClick={saveTemplate} disabled={!form.name||!form.subject||saving}
+              style={{ background:(!form.name||!form.subject||saving)?'#94a3b8':'#0f766e', color:'white', border:'none', borderRadius:8, padding:'9px 22px', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+              {saving ? 'Salvando...' : 'Salvar template'}
             </button>
-            <button onClick={goBack} style={{ background: "none", border: "none", color: "#64748b", fontSize: 13, cursor: "pointer", padding: "9px 12px" }}>Cancelar</button>
+            <button onClick={goBack} style={{ background:'none', border:'none', color:'#64748b', fontSize:13, cursor:'pointer', padding:'9px 12px' }}>Cancelar</button>
           </div>
         </div>
       </div>
     </div>
   );
 
-  /* ─── LIST PAGE ─── */
-  const activeFolderName = folders.find(f => f.id === activeFolder)?.name;
+  // ─── METRICS TAB ───
+  const MetricsTab = () => {
+    const { totals, byDate, byTemplate, events } = metrics;
+    const sent = totals.sent || totals.delivered || 0;
+    const opened = totals.opened || 0;
+    const clicked = totals.clicked || 0;
+    const bounced = (totals.hardBounce||0) + (totals.softBounce||0);
+    const mv = maxVal(byDate) || 1;
+    const pagedEvents = events.slice(eventPage * EVENT_PAGE_SIZE, (eventPage+1)*EVENT_PAGE_SIZE);
 
-  return (
-    <div style={{ maxWidth: 960, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1e293b" }}>Email Templates</h1>
-          <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>NPB Digital — Felipe Sempe</p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <UserHeader />
-          <button onClick={openCreate} style={btnPrimary}>+ Novo template</button>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-
-        {/* sidebar */}
-        <div style={{ width: 200, flexShrink: 0, background: "white", borderRadius: 12, border: "1px solid #e2e8f0", padding: 8 }}>
-          <p style={{ fontSize: 10, fontWeight: 600, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase", padding: "8px 10px 4px" }}>Filtrar</p>
-          <button onClick={() => setActiveFolder(null)}
-            style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", borderRadius: 7, fontSize: 13, border: "none", cursor: "pointer", background: activeFolder === null ? "#f0fdfa" : "transparent", color: activeFolder === null ? "#0f766e" : "#475569", fontWeight: activeFolder === null ? 600 : 400 }}>
-            Todos
-          </button>
-
-          {folders.length > 0 && <p style={{ fontSize: 10, fontWeight: 600, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase", padding: "10px 10px 4px" }}>Pastas</p>}
-
-          {folders.map(f => (
-            <div key={f.id} style={{ display: "flex", alignItems: "center" }}
-              onMouseEnter={() => setHovered(`f-${f.id}`)} onMouseLeave={() => setHovered(null)}>
-              <button onClick={() => setActiveFolder(f.id)}
-                style={{ flex: 1, textAlign: "left", padding: "7px 10px", borderRadius: 7, fontSize: 13, border: "none", cursor: "pointer", background: activeFolder === f.id ? "#f0fdfa" : "transparent", color: activeFolder === f.id ? "#0f766e" : "#475569", fontWeight: activeFolder === f.id ? 600 : 400 }}>
-                {f.name}
-              </button>
-              {hovered === `f-${f.id}` && (
-                <button onClick={e => deleteFolder(f.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#fca5a5", fontSize: 12, padding: "2px 5px" }}>✕</button>
-              )}
-            </div>
-          ))}
-
-          {showFolderInput ? (
-            <div style={{ padding: "4px 6px" }}>
-              <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") addFolder(); if (e.key === "Escape") setShowFolderInput(false); }}
-                placeholder="Nome da pasta"
-                style={{ width: "100%", border: "1px solid #99f6e4", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none" }} />
-              <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
-                <button onClick={addFolder} style={{ background: "#0f766e", color: "white", border: "none", borderRadius: 5, padding: "3px 10px", fontSize: 11, cursor: "pointer" }}>OK</button>
-                <button onClick={() => setShowFolderInput(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 11, cursor: "pointer" }}>Cancelar</button>
-              </div>
-            </div>
-          ) : (
-            <button onClick={() => setShowFolderInput(true)}
-              style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 10px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: "#94a3b8" }}>
-              + Nova pasta
+    return (
+      <div>
+        {/* Filters */}
+        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20, flexWrap:'wrap' }}>
+          <div>
+            <label style={{ fontSize:11, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:5 }}>Período</label>
+            <select value={metricDays} onChange={e => setMetricDays(Number(e.target.value))}
+              style={{ border:'1px solid #e2e8f0', borderRadius:8, padding:'7px 12px', fontSize:13, outline:'none', background:'white', cursor:'pointer' }}>
+              <option value={7}>Últimos 7 dias</option>
+              <option value={14}>Últimos 14 dias</option>
+              <option value={30}>Últimos 30 dias</option>
+              <option value={90}>Últimos 90 dias</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize:11, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:5 }}>Template</label>
+            <select value={metricTemplate} onChange={e => setMetricTemplate(e.target.value)}
+              style={{ border:'1px solid #e2e8f0', borderRadius:8, padding:'7px 12px', fontSize:13, outline:'none', background:'white', cursor:'pointer', minWidth:200 }}>
+              <option value="">Todos os templates</option>
+              {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+          <div style={{ marginTop:20 }}>
+            <button onClick={loadMetrics} style={{ background:'#0f766e', color:'white', border:'none', borderRadius:8, padding:'7px 16px', fontSize:13, cursor:'pointer' }}>
+              {metricLoading ? 'Carregando...' : '↻ Atualizar'}
             </button>
-          )}
+          </div>
         </div>
 
-        {/* templates */}
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>
-            {activeFolderName ? `Pasta: ${activeFolderName}` : "Todos os templates"} · {templates.length} template{templates.length !== 1 ? "s" : ""}
-          </p>
-
-          {templates.length === 0 ? (
-            <div style={{ background: "white", borderRadius: 12, border: "1px solid #e2e8f0", padding: "60px 24px", textAlign: "center" }}>
-              <div style={{ fontSize: 36, marginBottom: 10 }}>✉️</div>
-              <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12 }}>Nenhum template ainda.</p>
-              <button onClick={openCreate} style={{ background: "none", border: "none", color: "#0f766e", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>Criar o primeiro →</button>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {templates.map(t => (
-                <div key={t.id} onClick={() => openEdit(t)}
-                  onMouseEnter={() => setHovered(`c-${t.id}`)} onMouseLeave={() => setHovered(null)}
-                  style={{ background: "white", border: `1px solid ${hovered === `c-${t.id}` ? "#99f6e4" : "#e2e8f0"}`, borderRadius: 12, padding: "14px 18px", cursor: "pointer", transition: "border-color 0.15s" }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{t.name}</span>
-                        {t.email_folders?.name && <span style={{ fontSize: 11, background: "#f0fdfa", color: "#0f766e", padding: "2px 8px", borderRadius: 20, fontWeight: 500 }}>{t.email_folders.name}</span>}
-                      </div>
-                      <p style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>{t.subject}</p>
-                    </div>
-                    {hovered === `c-${t.id}` && (
-                      <button onClick={e => deleteTemplate(t.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#fca5a5", marginLeft: 10, fontSize: 13 }}>✕</button>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
-                    <code style={{ fontSize: 11, color: "#94a3b8", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.id}</code>
-                    <button onClick={e => copyId(t.id, e)} style={{ background: "none", border: "none", cursor: "pointer", color: "#0f766e", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>
-                      {copied === t.id ? "✓ Copiado!" : "Copiar ID"}
-                    </button>
-                  </div>
+        {metricLoading ? (
+          <div style={{ textAlign:'center', padding:'60px 0', color:'#94a3b8' }}>Carregando métricas...</div>
+        ) : (
+          <>
+            {/* KPI Cards */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:14, marginBottom:20 }}>
+              {[
+                { label:'Enviados', value: sent, sub: null, color:'#0f766e' },
+                { label:'Aberturas', value: opened, sub: pct(opened, sent), color:'#0284c7' },
+                { label:'Cliques', value: clicked, sub: pct(clicked, opened), color:'#7c3aed' },
+                { label:'Bounces', value: bounced, sub: pct(bounced, sent), color:'#dc2626' },
+              ].map(k => (
+                <div key={k.label} style={{ background:'white', borderRadius:12, border:'1px solid #e2e8f0', padding:'16px 20px' }}>
+                  <p style={{ fontSize:11, color:'#94a3b8', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>{k.label}</p>
+                  <p style={{ fontSize:28, fontWeight:700, color:k.color }}>{k.value.toLocaleString()}</p>
+                  {k.sub && <p style={{ fontSize:12, color:'#64748b', marginTop:3 }}>{k.sub} do total</p>}
                 </div>
               ))}
             </div>
+
+            {/* Chart by date */}
+            {byDate.length > 0 && (
+              <div style={{ background:'white', borderRadius:12, border:'1px solid #e2e8f0', padding:20, marginBottom:20 }}>
+                <p style={{ fontSize:13, fontWeight:600, color:'#1e293b', marginBottom:16 }}>Envios por dia</p>
+                <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:120, overflowX:'auto' }}>
+                  {byDate.map(d => (
+                    <div key={d.date} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, flex:1, minWidth:40 }}>
+                      <div style={{ display:'flex', alignItems:'flex-end', gap:2, height:90 }}>
+                        {[
+                          { v: d.sent, c:'#0f766e' },
+                          { v: d.opened, c:'#0284c7' },
+                          { v: d.clicked, c:'#7c3aed' },
+                        ].map((bar, i) => (
+                          <div key={i} title={bar.v} style={{ width:8, height: `${Math.max((bar.v/mv)*90, bar.v > 0 ? 3 : 0)}px`, background: bar.c, borderRadius:'2px 2px 0 0', transition:'height 0.3s' }} />
+                        ))}
+                      </div>
+                      <p style={{ fontSize:9, color:'#94a3b8', transform:'rotate(-45deg)', transformOrigin:'center', whiteSpace:'nowrap', marginTop:4 }}>{d.date.slice(5)}</p>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display:'flex', gap:16, marginTop:12 }}>
+                  {[{c:'#0f766e',l:'Enviados'},{c:'#0284c7',l:'Abertos'},{c:'#7c3aed',l:'Cliques'}].map(item => (
+                    <div key={item.l} style={{ display:'flex', alignItems:'center', gap:5 }}>
+                      <div style={{ width:8, height:8, borderRadius:2, background:item.c }} />
+                      <span style={{ fontSize:11, color:'#64748b' }}>{item.l}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* By template */}
+            {byTemplate.length > 0 && (
+              <div style={{ background:'white', borderRadius:12, border:'1px solid #e2e8f0', padding:20, marginBottom:20 }}>
+                <p style={{ fontSize:13, fontWeight:600, color:'#1e293b', marginBottom:14 }}>Por template</p>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                  <thead>
+                    <tr style={{ borderBottom:'1px solid #f1f5f9' }}>
+                      {['Template','Enviados','Entregues','Aberturas','Taxa abertura','Cliques','Taxa clique'].map(h => (
+                        <th key={h} style={{ textAlign:'left', padding:'6px 10px', color:'#94a3b8', fontWeight:600, fontSize:11, textTransform:'uppercase', letterSpacing:'0.05em' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {byTemplate.map((t, i) => (
+                      <tr key={i} style={{ borderBottom:'1px solid #f8fafc' }}>
+                        <td style={{ padding:'8px 10px', color:'#1e293b', fontWeight:500 }}>{t.name}</td>
+                        <td style={{ padding:'8px 10px', color:'#475569' }}>{t.sent}</td>
+                        <td style={{ padding:'8px 10px', color:'#475569' }}>{t.delivered}</td>
+                        <td style={{ padding:'8px 10px', color:'#0284c7', fontWeight:600 }}>{t.opened}</td>
+                        <td style={{ padding:'8px 10px', color:'#0284c7' }}>{pct(t.opened, t.sent)}</td>
+                        <td style={{ padding:'8px 10px', color:'#7c3aed', fontWeight:600 }}>{t.clicked}</td>
+                        <td style={{ padding:'8px 10px', color:'#7c3aed' }}>{pct(t.clicked, t.opened)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Events log */}
+            <div style={{ background:'white', borderRadius:12, border:'1px solid #e2e8f0', padding:20 }}>
+              <p style={{ fontSize:13, fontWeight:600, color:'#1e293b', marginBottom:14 }}>Log de eventos — leads individuais</p>
+              {events.length === 0 ? (
+                <p style={{ fontSize:13, color:'#94a3b8', textAlign:'center', padding:'30px 0' }}>Nenhum evento registrado ainda.</p>
+              ) : (
+                <>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                    <thead>
+                      <tr style={{ borderBottom:'1px solid #f1f5f9' }}>
+                        {['Data','E-mail','Lead','Evento','Template'].map(h => (
+                          <th key={h} style={{ textAlign:'left', padding:'6px 10px', color:'#94a3b8', fontWeight:600, fontSize:11, textTransform:'uppercase', letterSpacing:'0.05em' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedEvents.map((e, i) => (
+                        <tr key={i} style={{ borderBottom:'1px solid #f8fafc' }}>
+                          <td style={{ padding:'8px 10px', color:'#64748b', whiteSpace:'nowrap' }}>{e.event_date?.slice(0,16).replace('T',' ')}</td>
+                          <td style={{ padding:'8px 10px', color:'#1e293b' }}>{e.email}</td>
+                          <td style={{ padding:'8px 10px', color:'#475569' }}>{e.lead_name || '—'}</td>
+                          <td style={{ padding:'8px 10px' }}>
+                            <span style={{ background: (EVENT_COLORS[e.event_type]||'#94a3b8') + '22', color: EVENT_COLORS[e.event_type]||'#94a3b8', padding:'2px 8px', borderRadius:20, fontSize:11, fontWeight:600 }}>
+                              {EVENT_LABELS[e.event_type] || e.event_type}
+                            </span>
+                          </td>
+                          <td style={{ padding:'8px 10px', color:'#64748b' }}>{e.template_name || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {events.length > EVENT_PAGE_SIZE && (
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:14 }}>
+                      <span style={{ fontSize:12, color:'#94a3b8' }}>{eventPage*EVENT_PAGE_SIZE+1}–{Math.min((eventPage+1)*EVENT_PAGE_SIZE, events.length)} de {events.length}</span>
+                      <div style={{ display:'flex', gap:8 }}>
+                        <button disabled={eventPage===0} onClick={() => setEventPage(p=>p-1)}
+                          style={{ background:'none', border:'1px solid #e2e8f0', borderRadius:6, padding:'4px 12px', fontSize:12, cursor:eventPage===0?'default':'pointer', color:eventPage===0?'#cbd5e1':'#475569' }}>← Anterior</button>
+                        <button disabled={(eventPage+1)*EVENT_PAGE_SIZE>=events.length} onClick={() => setEventPage(p=>p+1)}
+                          style={{ background:'none', border:'1px solid #e2e8f0', borderRadius:6, padding:'4px 12px', fontSize:12, cursor:(eventPage+1)*EVENT_PAGE_SIZE>=events.length?'default':'pointer', color:(eventPage+1)*EVENT_PAGE_SIZE>=events.length?'#cbd5e1':'#475569' }}>Próximo →</button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // ─── LIST PAGE ───
+  const activeFolderName = folders.find(f => f.id === activeFolder)?.name;
+
+  return (
+    <div style={{ maxWidth:960, margin:'0 auto' }}>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+        <div>
+          <h1 style={{ fontSize:20, fontWeight:700, color:'#1e293b' }}>Email Templates</h1>
+          <p style={{ fontSize:12, color:'#94a3b8', marginTop:2 }}>NPB Digital — Felipe Sempe</p>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {/* Tab switcher */}
+          <div style={{ display:'flex', background:'white', border:'1px solid #e2e8f0', borderRadius:8, padding:3 }}>
+            {[{id:'templates',label:'Templates'},{id:'metrics',label:'Métricas'}].map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                style={{ padding:'6px 16px', borderRadius:6, border:'none', cursor:'pointer', fontSize:13, fontWeight:500, background: tab===t.id ? '#0f766e' : 'transparent', color: tab===t.id ? 'white' : '#64748b', transition:'all 0.15s' }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {tab === 'templates' && (
+            <button onClick={openCreate} style={{ background:'#0f766e', color:'white', border:'none', borderRadius:8, padding:'9px 18px', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+              + Novo template
+            </button>
           )}
         </div>
       </div>
+
+      {tab === 'metrics' ? <MetricsTab /> : (
+        <div style={{ display:'flex', gap:20, alignItems:'flex-start' }}>
+          {/* Sidebar */}
+          <div style={{ width:200, flexShrink:0, background:'white', borderRadius:12, border:'1px solid #e2e8f0', padding:8 }}>
+            <p style={{ fontSize:10, fontWeight:600, color:'#94a3b8', letterSpacing:'0.1em', textTransform:'uppercase', padding:'8px 10px 4px' }}>Filtrar</p>
+            <button onClick={() => setActiveFolder(null)}
+              style={{ display:'block', width:'100%', textAlign:'left', padding:'7px 10px', borderRadius:7, fontSize:13, border:'none', cursor:'pointer', background:activeFolder===null?'#f0fdfa':'transparent', color:activeFolder===null?'#0f766e':'#475569', fontWeight:activeFolder===null?600:400 }}>
+              Todos
+            </button>
+            {folders.length > 0 && <p style={{ fontSize:10, fontWeight:600, color:'#94a3b8', letterSpacing:'0.1em', textTransform:'uppercase', padding:'10px 10px 4px' }}>Pastas</p>}
+            {folders.map(f => (
+              <div key={f.id} style={{ display:'flex', alignItems:'center' }} onMouseEnter={() => setHovered(`f-${f.id}`)} onMouseLeave={() => setHovered(null)}>
+                <button onClick={() => setActiveFolder(f.id)}
+                  style={{ flex:1, textAlign:'left', padding:'7px 10px', borderRadius:7, fontSize:13, border:'none', cursor:'pointer', background:activeFolder===f.id?'#f0fdfa':'transparent', color:activeFolder===f.id?'#0f766e':'#475569', fontWeight:activeFolder===f.id?600:400 }}>
+                  {f.name}
+                </button>
+                {hovered===`f-${f.id}` && <button onClick={e => deleteFolder(f.id, e)} style={{ background:'none', border:'none', cursor:'pointer', color:'#fca5a5', fontSize:12, padding:'2px 5px' }}>✕</button>}
+              </div>
+            ))}
+            {showFolderInput ? (
+              <div style={{ padding:'4px 6px' }}>
+                <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)}
+                  onKeyDown={e => { if (e.key==='Enter') addFolder(); if (e.key==='Escape') setShowFolderInput(false); }}
+                  placeholder="Nome da pasta"
+                  style={{ width:'100%', border:'1px solid #99f6e4', borderRadius:6, padding:'5px 8px', fontSize:12, outline:'none' }} />
+                <div style={{ display:'flex', gap:6, marginTop:5 }}>
+                  <button onClick={addFolder} style={{ background:'#0f766e', color:'white', border:'none', borderRadius:5, padding:'3px 10px', fontSize:11, cursor:'pointer' }}>OK</button>
+                  <button onClick={() => setShowFolderInput(false)} style={{ background:'none', border:'none', color:'#94a3b8', fontSize:11, cursor:'pointer' }}>Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowFolderInput(true)}
+                style={{ display:'block', width:'100%', textAlign:'left', padding:'7px 10px', fontSize:12, border:'none', cursor:'pointer', background:'transparent', color:'#94a3b8' }}>
+                + Nova pasta
+              </button>
+            )}
+          </div>
+
+          {/* Templates list */}
+          <div style={{ flex:1 }}>
+            <p style={{ fontSize:12, color:'#94a3b8', marginBottom:12 }}>
+              {activeFolderName ? `Pasta: ${activeFolderName}` : 'Todos os templates'} · {templates.length} template{templates.length!==1?'s':''}
+            </p>
+            {templates.length === 0 ? (
+              <div style={{ background:'white', borderRadius:12, border:'1px solid #e2e8f0', padding:'60px 24px', textAlign:'center' }}>
+                <div style={{ fontSize:36, marginBottom:10 }}>✉️</div>
+                <p style={{ fontSize:13, color:'#94a3b8', marginBottom:12 }}>Nenhum template ainda.</p>
+                <button onClick={openCreate} style={{ background:'none', border:'none', color:'#0f766e', fontSize:13, cursor:'pointer', fontWeight:600 }}>Criar o primeiro →</button>
+              </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {templates.map(t => (
+                  <div key={t.id} onClick={() => openEdit(t)}
+                    onMouseEnter={() => setHovered(`c-${t.id}`)} onMouseLeave={() => setHovered(null)}
+                    style={{ background:'white', border:`1px solid ${hovered===`c-${t.id}`?'#99f6e4':'#e2e8f0'}`, borderRadius:12, padding:'14px 18px', cursor:'pointer', transition:'border-color 0.15s' }}>
+                    <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                          <span style={{ fontSize:14, fontWeight:600, color:'#1e293b' }}>{t.name}</span>
+                          {t.email_folders?.name && <span style={{ fontSize:11, background:'#f0fdfa', color:'#0f766e', padding:'2px 8px', borderRadius:20, fontWeight:500 }}>{t.email_folders.name}</span>}
+                        </div>
+                        <p style={{ fontSize:12, color:'#64748b', marginTop:3 }}>{t.subject}</p>
+                      </div>
+                      {hovered===`c-${t.id}` && <button onClick={e => deleteTemplate(t.id, e)} style={{ background:'none', border:'none', cursor:'pointer', color:'#fca5a5', marginLeft:10, fontSize:13 }}>✕</button>}
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:10, paddingTop:10, borderTop:'1px solid #f1f5f9' }}>
+                      <code style={{ fontSize:11, color:'#94a3b8', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.id}</code>
+                      <button onClick={e => copyId(t.id, e)} style={{ background:'none', border:'none', cursor:'pointer', color:'#0f766e', fontSize:11, fontWeight:600, whiteSpace:'nowrap', flexShrink:0 }}>
+                        {copied===t.id ? '✓ Copiado!' : 'Copiar ID'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ═════════════ ROOT ═════════════ */
-function Root() {
-  const [session, setSession]         = useState(null);
-  const [ready, setReady]             = useState(false);
-  const [recoveryMode, setRecoveryMode] = useState(false);
-  const [showRecoveryReq, setShowRecoveryReq] = useState(false);
-  const [isAdmin, setIsAdmin]         = useState(false);
-  const [viewingAdmin, setViewingAdmin] = useState(false);
-
-  useEffect(() => {
-    sb.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); });
-    const { data: sub } = sb.auth.onAuthStateChange((event, newSession) => {
-      setSession(newSession);
-      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
-      if (event === "SIGNED_OUT") { setIsAdmin(false); setViewingAdmin(false); setRecoveryMode(false); }
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  // Verifica se o user logado é admin
-  useEffect(() => {
-    let cancelled = false;
-    if (session && !recoveryMode) {
-      (async () => {
-        try {
-          const { data, error } = await sb
-            .from("email_template_admins")
-            .select("user_id")
-            .eq("user_id", session.user.id)
-            .maybeSingle();
-          if (!cancelled) setIsAdmin(!error && !!data);
-        } catch { if (!cancelled) setIsAdmin(false); }
-      })();
-    } else {
-      setIsAdmin(false);
-    }
-    return () => { cancelled = true; };
-  }, [session, recoveryMode]);
-
-  const logout = async () => {
-    await sb.auth.signOut();
-  };
-
-  if (!ready) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-        <div className="spin" />
-      </div>
-    );
-  }
-
-  // Se o usuário clicou no link de recovery: mostrar tela de nova senha
-  if (session && recoveryMode) {
-    return <UpdatePasswordScreen onDone={() => setRecoveryMode(false)} />;
-  }
-
-  if (!session) {
-    if (showRecoveryReq) return <RecoveryRequestScreen onBack={() => setShowRecoveryReq(false)} />;
-    return <LoginScreen onRecoveryRequest={() => setShowRecoveryReq(true)} />;
-  }
-
-  if (viewingAdmin && isAdmin) {
-    return <AdminPanel onClose={() => setViewingAdmin(false)} currentUserId={session.user.id} />;
-  }
-
-  return (
-    <TemplatesApp
-      session={session}
-      isAdmin={isAdmin}
-      onOpenAdmin={() => setViewingAdmin(true)}
-      onLogout={logout}
-    />
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<Root />);
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
 </html>
