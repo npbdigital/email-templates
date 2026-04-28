@@ -123,14 +123,14 @@ function buildVerificarDescadastroNode(position) {
   const jsCode = [
     "const triggerData = $('Receber Trigger').item.json.body || {};",
     "const email = (triggerData.email || '').toString().toLowerCase().trim();",
-    "let unsubscribed = 0;",
+    "let unsubscribed = false;",
     "if (email) {",
     "  try {",
     "    const url = '" + SUPABASE_URL + "/rest/v1/email_unsubscribed?email=eq.' + encodeURIComponent(email) + '&select=email';",
     "    const res = await fetch(url, { headers: { apikey: '" + SUPABASE_KEY + "', Authorization: 'Bearer " + SUPABASE_KEY + "' } });",
     "    if (res.ok) {",
     "      const arr = await res.json();",
-    "      unsubscribed = Array.isArray(arr) && arr.length > 0 ? 1 : 0;",
+    "      unsubscribed = Array.isArray(arr) && arr.length > 0;",
     "    }",
     "  } catch (e) {",
     "    console.log('verificar descadastro falhou, tratando como nao descadastrado:', e?.message);",
@@ -164,10 +164,10 @@ function buildEstaDescadastradoIf(position) {
       conditions: {
         conditions: [{
           leftValue: '={{ $json.unsubscribed }}',
-          operator: { type: 'number', operation: 'gt' },
-          rightValue: 0
+          operator: { type: 'boolean', operation: 'true', singleValue: true }
         }]
-      }
+      },
+      looseTypeValidation: true
     }
   }
 }
