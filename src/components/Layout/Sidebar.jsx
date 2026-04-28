@@ -1,121 +1,108 @@
-import { useState } from 'react'
+import { NavLink } from 'react-router-dom'
+import { Mail, BarChart3, Workflow, LogOut, Bell, UserX } from 'lucide-react'
+import { useNotificationCount } from '../../hooks/useNotifications'
 
-export default function Sidebar({ folders, activeFolder, setActiveFolder, onAddFolder, onDeleteFolder }) {
-  const [newFolderName, setNewFolderName] = useState('')
-  const [showFolderInput, setShowFolderInput] = useState(false)
-  const [hoveredId, setHoveredId] = useState(null)
+const NAV = [
+  { to: '/templates', label: 'Templates', Icon: Mail },
+  { to: '/metrics', label: 'Métricas', Icon: BarChart3 },
+  { to: '/automations', label: 'Automações', Icon: Workflow },
+  { to: '/notifications', label: 'Notificações', Icon: Bell, badgeKey: 'notifications' },
+  { to: '/unsubscribed', label: 'Descadastros', Icon: UserX }
+]
 
-  const submitFolder = async () => {
-    if (!newFolderName.trim()) return
-    await onAddFolder(newFolderName)
-    setNewFolderName('')
-    setShowFolderInput(false)
-  }
+const baseItem = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: '8px 12px',
+  borderRadius: 8,
+  fontSize: 13,
+  textDecoration: 'none',
+  transition: 'background 0.12s, color 0.12s'
+}
 
-  const handleDelete = async (id, e) => {
-    e.stopPropagation()
-    if (!confirm('Apagar esta pasta?')) return
-    await onDeleteFolder(id)
-    if (activeFolder === id) setActiveFolder(null)
-  }
+function itemStyle(isActive) {
+  if (isActive) return { ...baseItem, background: '#f0fdfa', color: '#0f766e', fontWeight: 600 }
+  return { ...baseItem, background: 'transparent', color: '#475569', fontWeight: 500 }
+}
+
+function Badge({ value }) {
+  if (!value) return null
+  return (
+    <span style={{
+      background: '#dc2626',
+      color: 'white',
+      fontSize: 10,
+      fontWeight: 700,
+      padding: '1px 6px',
+      borderRadius: 10,
+      minWidth: 18,
+      textAlign: 'center',
+      lineHeight: '14px'
+    }}>
+      {value > 99 ? '99+' : value}
+    </span>
+  )
+}
+
+export default function Sidebar({ userEmail, onLogout }) {
+  const { count: notifCount } = useNotificationCount({ pollMs: 30000 })
 
   return (
-    <div style={{ width: 200, flexShrink: 0, background: 'white', borderRadius: 12, border: '1px solid #e2e8f0', padding: 8 }}>
-      <p style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '8px 10px 4px' }}>Filtrar</p>
-      <button
-        onClick={() => setActiveFolder(null)}
-        style={{
-          display: 'block',
-          width: '100%',
-          textAlign: 'left',
-          padding: '7px 10px',
-          borderRadius: 7,
-          fontSize: 13,
-          border: 'none',
-          cursor: 'pointer',
-          background: activeFolder === null ? '#f0fdfa' : 'transparent',
-          color: activeFolder === null ? '#0f766e' : '#475569',
-          fontWeight: activeFolder === null ? 600 : 400
-        }}
-      >
-        Todos
-      </button>
+    <aside style={{
+      width: 220,
+      flexShrink: 0,
+      background: 'white',
+      borderRight: '1px solid #e2e8f0',
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      position: 'sticky',
+      top: 0
+    }}>
+      <div style={{ padding: '20px 16px 16px' }}>
+        <p style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', lineHeight: 1.1 }}>Email Templates</p>
+        <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>NPB Digital — Felipe Sempe</p>
+      </div>
 
-      {folders.length > 0 && (
-        <p style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '10px 10px 4px' }}>Pastas</p>
-      )}
+      <nav style={{ flex: 1, padding: '4px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {NAV.map(({ to, label, Icon, badgeKey }) => (
+          <NavLink key={to} to={to} style={({ isActive }) => itemStyle(isActive)}>
+            {({ isActive }) => (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
+                <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
+                <span style={{ flex: 1 }}>{label}</span>
+                {badgeKey === 'notifications' && <Badge value={notifCount} />}
+              </span>
+            )}
+          </NavLink>
+        ))}
+      </nav>
 
-      {folders.map(f => (
-        <div
-          key={f.id}
-          style={{ display: 'flex', alignItems: 'center' }}
-          onMouseEnter={() => setHoveredId(f.id)}
-          onMouseLeave={() => setHoveredId(null)}
-        >
-          <button
-            onClick={() => setActiveFolder(f.id)}
-            style={{
-              flex: 1,
-              textAlign: 'left',
-              padding: '7px 10px',
-              borderRadius: 7,
-              fontSize: 13,
-              border: 'none',
-              cursor: 'pointer',
-              background: activeFolder === f.id ? '#f0fdfa' : 'transparent',
-              color: activeFolder === f.id ? '#0f766e' : '#475569',
-              fontWeight: activeFolder === f.id ? 600 : 400
-            }}
-          >
-            {f.name}
-          </button>
-          {hoveredId === f.id && (
-            <button
-              onClick={(e) => handleDelete(f.id, e)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fca5a5', fontSize: 12, padding: '2px 5px' }}
-            >
-              ✕
-            </button>
-          )}
-        </div>
-      ))}
-
-      {showFolderInput ? (
-        <div style={{ padding: '4px 6px' }}>
-          <input
-            autoFocus
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') submitFolder()
-              if (e.key === 'Escape') setShowFolderInput(false)
-            }}
-            placeholder="Nome da pasta"
-            style={{ width: '100%', border: '1px solid #99f6e4', borderRadius: 6, padding: '5px 8px', fontSize: 12, outline: 'none' }}
-          />
-          <div style={{ display: 'flex', gap: 6, marginTop: 5 }}>
-            <button
-              onClick={submitFolder}
-              style={{ background: '#0f766e', color: 'white', border: 'none', borderRadius: 5, padding: '3px 10px', fontSize: 11, cursor: 'pointer' }}
-            >
-              OK
-            </button>
-            <button
-              onClick={() => setShowFolderInput(false)}
-              style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 11, cursor: 'pointer' }}
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      ) : (
+      <div style={{ borderTop: '1px solid #e2e8f0', padding: '12px 14px' }}>
+        {userEmail && (
+          <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, wordBreak: 'break-all' }}>{userEmail}</p>
+        )}
         <button
-          onClick={() => setShowFolderInput(true)}
-          style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', fontSize: 12, border: 'none', cursor: 'pointer', background: 'transparent', color: '#94a3b8' }}
+          onClick={onLogout}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            width: '100%',
+            background: 'none',
+            border: '1px solid #e2e8f0',
+            borderRadius: 8,
+            padding: '7px 10px',
+            fontSize: 12,
+            color: '#475569',
+            cursor: 'pointer'
+          }}
         >
-          + Nova pasta
+          <LogOut size={14} />
+          Sair
         </button>
-      )}
-    </div>
+      </div>
+    </aside>
   )
 }

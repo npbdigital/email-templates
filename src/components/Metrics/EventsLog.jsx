@@ -35,7 +35,11 @@ export default function EventsLog({ events }) {
               {paged.map((e, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}>
                   <td style={{ padding: '8px 10px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                    {e.event_date?.slice(0, 16).replace('T', ' ')}
+                    {e.event_date ? new Date(e.event_date).toLocaleString('pt-BR', {
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
+                      timeZone: 'America/Sao_Paulo'
+                    }) : '—'}
                   </td>
                   <td style={{ padding: '8px 10px', color: '#1e293b' }}>{e.email}</td>
                   <td style={{ padding: '8px 10px', color: '#475569' }}>{e.lead_name || '—'}</td>
@@ -51,7 +55,7 @@ export default function EventsLog({ events }) {
                       {EVENT_LABELS[e.event_type] || e.event_type}
                     </span>
                   </td>
-                  <td style={{ padding: '8px 10px', color: '#64748b' }}>{e.template_name || '—'}</td>
+                  <td style={{ padding: '8px 10px', color: '#64748b' }}>{e.email_templates?.name || '—'}</td>
                 </tr>
               ))}
             </tbody>

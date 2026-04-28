@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import Sidebar from '../Layout/Sidebar'
+import FoldersPanel from './FoldersPanel'
 import TemplateCard from './TemplateCard'
 
 export default function TemplateList({
@@ -25,7 +25,7 @@ export default function TemplateList({
 
   return (
     <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-      <Sidebar
+      <FoldersPanel
         folders={folders}
         activeFolder={activeFolder}
         setActiveFolder={setActiveFolder}

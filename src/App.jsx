@@ -1,27 +1,20 @@
 import { useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import Login from './components/Auth/Login'
-import Header from './components/Layout/Header'
-import TemplateList from './components/Templates/TemplateList'
-import TemplateEditor from './components/Templates/TemplateEditor'
-import MetricsTab from './components/Metrics/MetricsTab'
-import { useFolders } from './hooks/useFolders'
-import { useTemplates } from './hooks/useTemplates'
+import AppShell from './components/Layout/AppShell'
+import TemplatesPage from './pages/TemplatesPage'
+import TemplateEditorPage from './pages/TemplateEditorPage'
+import MetricsPage from './pages/MetricsPage'
+import AutomationsListPage from './pages/AutomationsListPage'
+import AutomationBuilderPage from './pages/AutomationBuilderPage'
+import UnsubscribePage from './pages/UnsubscribePage'
+import NotificationsPage from './pages/NotificationsPage'
+import UnsubscribedPage from './pages/UnsubscribedPage'
 
-export default function App() {
+function AuthedApp() {
   const [session, setSession] = useState(null)
   const [authChecked, setAuthChecked] = useState(false)
-
-  const [tab, setTab] = useState('templates')
-  const [activeFolder, setActiveFolder] = useState(null)
-  const [page, setPage] = useState('list')
-  const [editing, setEditing] = useState(null)
-
-  const [metricDays, setMetricDays] = useState(7)
-  const [metricTemplate, setMetricTemplate] = useState('')
-
-  const { folders, addFolder, deleteFolder } = useFolders()
-  const { templates, saveTemplate, deleteTemplate } = useTemplates(activeFolder)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -33,81 +26,43 @@ export default function App() {
   }, [])
 
   if (!authChecked) {
-    return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>Carregando...</div>
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>
+        Carregando...
+      </div>
+    )
   }
 
   if (!session) return <Login />
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    setEditing(null)
-    setPage('list')
-  }
-
-  const openCreate = () => {
-    setEditing(null)
-    setPage('edit')
-  }
-
-  const openEdit = (template) => {
-    setEditing(template)
-    setPage('edit')
-  }
-
-  const goBack = () => {
-    setEditing(null)
-    setPage('list')
-  }
-
-  const handleSave = async (payload) => {
-    await saveTemplate(payload)
-    goBack()
-  }
-
-  if (page === 'edit') {
-    return (
-      <div style={{ padding: 24 }}>
-        <TemplateEditor
-          editing={editing}
-          folders={folders}
-          onSave={handleSave}
-          onCancel={goBack}
-        />
-      </div>
-    )
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 960, margin: '0 auto' }}>
-      <Header
-        tab={tab}
-        setTab={setTab}
-        onNewTemplate={openCreate}
-        onLogout={handleLogout}
-        userEmail={session.user?.email}
-      />
+    <AppShell userEmail={session.user?.email} onLogout={handleLogout}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/templates" replace />} />
+        <Route path="/templates" element={<TemplatesPage />} />
+        <Route path="/templates/:id" element={<TemplateEditorPage />} />
+        <Route path="/metrics" element={<MetricsPage />} />
+        <Route path="/automations" element={<AutomationsListPage />} />
+        <Route path="/automations/:id" element={<AutomationBuilderPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/unsubscribed" element={<UnsubscribedPage />} />
+        <Route path="*" element={<Navigate to="/templates" replace />} />
+      </Routes>
+    </AppShell>
+  )
+}
 
-      {tab === 'metrics' ? (
-        <MetricsTab
-          templates={templates}
-          days={metricDays}
-          setDays={setMetricDays}
-          templateId={metricTemplate}
-          setTemplateId={setMetricTemplate}
-        />
-      ) : (
-        <TemplateList
-          folders={folders}
-          templates={templates}
-          activeFolder={activeFolder}
-          setActiveFolder={setActiveFolder}
-          onAddFolder={addFolder}
-          onDeleteFolder={deleteFolder}
-          onOpenTemplate={openEdit}
-          onCreateTemplate={openCreate}
-          onDeleteTemplate={deleteTemplate}
-        />
-      )}
-    </div>
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/unsubscribe" element={<UnsubscribePage />} />
+        <Route path="*" element={<AuthedApp />} />
+      </Routes>
+    </BrowserRouter>
   )
 }

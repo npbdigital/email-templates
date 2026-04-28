@@ -20,8 +20,8 @@ export default function TableByTemplate({ byTemplate }) {
           </tr>
         </thead>
         <tbody>
-          {byTemplate.map((t, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}>
+          {byTemplate.map((t) => (
+            <tr key={t.id} style={{ borderBottom: '1px solid #f8fafc' }}>
               <td style={{ padding: '8px 10px', color: '#1e293b', fontWeight: 500 }}>{t.name}</td>
               <td style={{ padding: '8px 10px', color: '#475569' }}>{t.sent}</td>
               <td style={{ padding: '8px 10px', color: '#475569' }}>{t.delivered}</td>

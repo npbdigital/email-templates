@@ -1,11 +1,21 @@
-export default function ChartByDate({ byDate }) {
+function formatLabel(d, granularity) {
+  if (granularity === 'week') {
+    // d like "2026-W17" -> "S17"
+    const wk = d.split('-W')[1]
+    return wk ? `S${wk}` : d
+  }
+  return d.slice(5) // "MM-DD"
+}
+
+export default function ChartByDate({ byDate, granularity = 'day' }) {
   if (byDate.length === 0) return null
 
   const mv = Math.max(...byDate.map(d => Math.max(d.sent || 0, d.opened || 0, d.clicked || 0))) || 1
+  const title = granularity === 'week' ? 'Envios por semana' : 'Envios por dia'
 
   return (
     <div style={{ background: 'white', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20, marginBottom: 20 }}>
-      <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>Envios por dia</p>
+      <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 16 }}>{title}</p>
 
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, overflowX: 'auto' }}>
         {byDate.map(d => (
@@ -30,7 +40,7 @@ export default function ChartByDate({ byDate }) {
               ))}
             </div>
             <p style={{ fontSize: 9, color: '#94a3b8', transform: 'rotate(-45deg)', transformOrigin: 'center', whiteSpace: 'nowrap', marginTop: 4 }}>
-              {d.date.slice(5)}
+              {formatLabel(d.date, granularity)}
             </p>
           </div>
         ))}
