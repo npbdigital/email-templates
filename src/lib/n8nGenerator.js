@@ -120,19 +120,35 @@ function buildTriggerNode(automation, position) {
 }
 
 function buildVerificarDescadastroNode(position) {
+  const jsCode = [
+    "const triggerData = $('Receber Trigger').item.json.body || {};",
+    "const email = (triggerData.email || '').toString().toLowerCase().trim();",
+    "let unsubscribed = 0;",
+    "if (email) {",
+    "  try {",
+    "    const url = '" + SUPABASE_URL + "/rest/v1/email_unsubscribed?email=eq.' + encodeURIComponent(email) + '&select=email';",
+    "    const res = await fetch(url, { headers: { apikey: '" + SUPABASE_KEY + "', Authorization: 'Bearer " + SUPABASE_KEY + "' } });",
+    "    if (res.ok) {",
+    "      const arr = await res.json();",
+    "      unsubscribed = Array.isArray(arr) && arr.length > 0 ? 1 : 0;",
+    "    }",
+    "  } catch (e) {",
+    "    console.log('verificar descadastro falhou, tratando como nao descadastrado:', e?.message);",
+    "  }",
+    "}",
+    "return [{ json: { email, unsubscribed } }];"
+  ].join('\n')
+
   return {
     id: makeNodeId(),
     name: 'Verificar Descadastro',
-    type: 'n8n-nodes-base.httpRequest',
-    typeVersion: 4.4,
+    type: 'n8n-nodes-base.code',
+    typeVersion: 2,
     position: [position.x, position.y],
     parameters: {
-      method: 'GET',
-      url: '=' + SUPABASE_URL + '/rest/v1/email_unsubscribed?email=eq.{{ encodeURIComponent(($("Receber Trigger").item.json.body.email || "").toLowerCase()) }}&select=email',
-      sendHeaders: true,
-      specifyHeaders: 'keypair',
-      headerParameters: { parameters: supabaseHeaders() },
-      onError: 'continueRegularOutput'
+      mode: 'runOnceForAllItems',
+      language: 'javaScript',
+      jsCode
     }
   }
 }
@@ -147,7 +163,7 @@ function buildEstaDescadastradoIf(position) {
     parameters: {
       conditions: {
         conditions: [{
-          leftValue: '={{ Array.isArray($json) ? $json.length : 0 }}',
+          leftValue: '={{ $json.unsubscribed }}',
           operator: { type: 'number', operation: 'gt' },
           rightValue: 0
         }]
