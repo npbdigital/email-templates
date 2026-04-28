@@ -1,39 +1,25 @@
+import { supabase } from './supabase'
 import { generateN8nWorkflow } from './n8nGenerator'
 
 const N8N_BASE = (import.meta.env.VITE_N8N_BASE_URL || '').replace(/\/+$/, '')
-const N8N_KEY = import.meta.env.VITE_N8N_API_KEY || ''
 
-function ensureConfig() {
-  if (!N8N_BASE) throw new Error('VITE_N8N_BASE_URL não configurado.')
-  if (!N8N_KEY) throw new Error('VITE_N8N_API_KEY não configurado.')
-}
-
-async function n8nFetch(path, options = {}) {
-  ensureConfig()
-  const url = `${N8N_BASE}/api/v1${path}`
-  let res
-  try {
-    res = await fetch(url, {
-      ...options,
-      headers: {
-        'X-N8N-API-KEY': N8N_KEY,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        ...(options.headers || {})
-      }
-    })
-  } catch (e) {
-    throw new Error('Falha de rede ao chamar n8n. Provável CORS — adicione o domínio do app em N8N_CORS_ALLOW_ORIGIN nas vars do n8n. Detalhe: ' + (e?.message || ''))
+async function n8nProxy(method, path, body) {
+  const { data, error } = await supabase.functions.invoke('n8n-proxy', {
+    body: { method, path, body }
+  })
+  if (error) {
+    const detail = error?.message || error?.context?.error || ''
+    throw new Error(`n8n-proxy: ${detail || 'falha'}`)
   }
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`n8n ${res.status}: ${text || res.statusText}`)
+  if (data && data.error) {
+    const detail = data.detail ? ` (${data.detail})` : ''
+    throw new Error(`n8n: ${data.error}${detail}`)
   }
-  if (res.status === 204) return null
-  return res.json()
+  return data
 }
 
 function webhookUrlFor(automation) {
+  if (!N8N_BASE) return null
   return `${N8N_BASE}/webhook/automation-${automation.id}`
 }
 
@@ -43,10 +29,7 @@ export async function publishAutomation(automation, templates) {
   let workflowId = automation.n8n_workflow_id
   if (workflowId) {
     try {
-      await n8nFetch(`/workflows/${workflowId}`, {
-        method: 'PUT',
-        body: JSON.stringify(workflow)
-      })
+      await n8nProxy('PUT', `/api/v1/workflows/${workflowId}`, workflow)
     } catch (e) {
       const msg = (e?.message || '').toLowerCase()
       if (msg.includes('404') || msg.includes('not found')) {
@@ -58,16 +41,13 @@ export async function publishAutomation(automation, templates) {
   }
 
   if (!workflowId) {
-    const created = await n8nFetch('/workflows', {
-      method: 'POST',
-      body: JSON.stringify(workflow)
-    })
+    const created = await n8nProxy('POST', '/api/v1/workflows', workflow)
     workflowId = created?.id
     if (!workflowId) throw new Error('n8n não retornou um workflow id.')
   }
 
   try {
-    await n8nFetch(`/workflows/${workflowId}/activate`, { method: 'POST' })
+    await n8nProxy('POST', `/api/v1/workflows/${workflowId}/activate`, null)
   } catch (e) {
     const msg = (e?.message || '').toLowerCase()
     if (!msg.includes('already')) throw e
@@ -82,7 +62,7 @@ export async function publishAutomation(automation, templates) {
 export async function unpublishAutomation(automation) {
   if (!automation.n8n_workflow_id) return
   try {
-    await n8nFetch(`/workflows/${automation.n8n_workflow_id}/deactivate`, { method: 'POST' })
+    await n8nProxy('POST', `/api/v1/workflows/${automation.n8n_workflow_id}/deactivate`, null)
   } catch (e) {
     const msg = (e?.message || '').toLowerCase()
     if (msg.includes('404') || msg.includes('not found')) return
@@ -93,7 +73,7 @@ export async function unpublishAutomation(automation) {
 export async function deleteN8nWorkflow(automation) {
   if (!automation.n8n_workflow_id) return
   try {
-    await n8nFetch(`/workflows/${automation.n8n_workflow_id}`, { method: 'DELETE' })
+    await n8nProxy('DELETE', `/api/v1/workflows/${automation.n8n_workflow_id}`, null)
   } catch (e) {
     const msg = (e?.message || '').toLowerCase()
     if (msg.includes('404') || msg.includes('not found')) return
