@@ -339,7 +339,7 @@ export function generateN8nWorkflow(automation, templates) {
   }
 
   return {
-    name: 'AUTO — ' + automation.name,
+    name: 'ET | ' + automation.name,
     nodes: n8nNodes,
     connections,
     settings: { executionOrder: 'v1' }

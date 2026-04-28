@@ -41,7 +41,6 @@ export default function AutomationBuilderPage() {
 
   const flowDraftRef = useRef(null)
   const { templates } = useTemplates(null)
-  const [showFolderHint, setShowFolderHint] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -107,7 +106,6 @@ export default function AutomationBuilderPage() {
       return
     }
 
-    const wasFirstPublish = !automation.n8n_workflow_id
     setPublishing(true)
     try {
       const saved = await updateAutomation(automation.id, {
@@ -122,7 +120,6 @@ export default function AutomationBuilderPage() {
       })
       setAutomation(prev => ({ ...prev, ...final, flow_data: ensureTriggerNode(final.flow_data, final) }))
       setSavedAt(Date.now())
-      if (wasFirstPublish) setShowFolderHint(true)
     } catch (e) {
       setErr(e?.message || 'Falha ao publicar.')
     } finally {
@@ -247,22 +244,6 @@ export default function AutomationBuilderPage() {
       {err && (
         <div style={{ background: '#fef2f2', color: '#dc2626', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>
           {err}
-        </div>
-      )}
-
-      {showFolderHint && (
-        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-          <span style={{ fontSize: 16, lineHeight: '20px' }}>📁</span>
-          <div style={{ flex: 1, lineHeight: 1.5 }}>
-            Workflow criado na <strong>raiz do n8n</strong>. Para organizar, abra no n8n e arraste para a pasta{' '}
-            <strong>"Email Templates"</strong> (precisa fazer só uma vez — republicações preservam a pasta).
-            <button
-              onClick={() => setShowFolderHint(false)}
-              style={{ marginLeft: 8, background: 'none', border: 'none', color: '#92400e', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
-            >
-              Ok, entendi
-            </button>
-          </div>
         </div>
       )}
 
