@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { deleteN8nWorkflow } from '../lib/n8nApi'
 
 const EMPTY_FLOW = { nodes: [], edges: [] }
 
@@ -38,6 +39,10 @@ export function useAutomations() {
   }
 
   const deleteAutomation = async (id) => {
+    const target = automations.find(a => a.id === id)
+    if (target?.n8n_workflow_id) {
+      try { await deleteN8nWorkflow(target) } catch (e) { console.warn('Falha ao remover workflow n8n:', e?.message) }
+    }
     const { error } = await supabase.from('automations').delete().eq('id', id)
     if (error) throw error
     await load()
