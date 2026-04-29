@@ -342,6 +342,6 @@ export function generateN8nWorkflow(automation, templates) {
     name: 'ET | ' + automation.name,
     nodes: n8nNodes,
     connections,
-    settings: { executionOrder: 'v1' }
+    settings: { executionOrder: 'v1', availableInMCP: true }
   }
 }
