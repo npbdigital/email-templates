@@ -59,7 +59,7 @@ function buildSendEmailJsCode(templateId) {
     "const crypto = require('crypto');",
     "const SECRET = '" + SECRET + "';",
     "const token = crypto.createHmac('sha256', SECRET)",
-    "  .update(email.toLowerCase())",
+    "  .update((email || '').toLowerCase())",
     "  .digest('hex')",
     "  .slice(0, 32);",
     "const unsubscribeUrl = 'https://templates.felipesempe.com.br/unsubscribe?email='",
@@ -136,7 +136,11 @@ function buildVerificarDescadastroNode(position) {
     "    console.log('verificar descadastro falhou, tratando como nao descadastrado:', e?.message);",
     "  }",
     "}",
-    "return [{ json: { email, unsubscribed } }];"
+    "if (unsubscribed) {",
+    "  console.log('Lead descadastrado, fluxo encerrado para:', email);",
+    "  return [];",
+    "}",
+    "return [{ json: $('Receber Trigger').item.json }];"
   ].join('\n')
 
   return {
@@ -149,25 +153,6 @@ function buildVerificarDescadastroNode(position) {
       mode: 'runOnceForAllItems',
       language: 'javaScript',
       jsCode
-    }
-  }
-}
-
-function buildEstaDescadastradoIf(position) {
-  return {
-    id: makeNodeId(),
-    name: 'Esta Descadastrado?',
-    type: 'n8n-nodes-base.if',
-    typeVersion: 2.3,
-    position: [position.x, position.y],
-    parameters: {
-      conditions: {
-        conditions: [{
-          leftValue: '={{ $json.unsubscribed }}',
-          operator: { type: 'boolean', operation: 'true', singleValue: true }
-        }]
-      },
-      looseTypeValidation: true
     }
   }
 }
@@ -231,21 +216,6 @@ function buildEnviarBrevoNode(position, suffix) {
   }
 }
 
-function buildLeadDescadastradoNode(position) {
-  return {
-    id: makeNodeId(),
-    name: 'Lead Descadastrado Ignorar',
-    type: 'n8n-nodes-base.code',
-    typeVersion: 2,
-    position: [position.x, position.y],
-    parameters: {
-      mode: 'runOnceForAllItems',
-      language: 'javaScript',
-      jsCode: "const email = $('Receber Trigger').item.json.body?.email || '';\nconsole.log('Lead descadastrado, ignorado:', email);\nreturn [{ json: { status: 'ignorado', motivo: 'descadastrado', email } }];"
-    }
-  }
-}
-
 function setConnection(conns, fromName, toName, output = 0) {
   if (!conns[fromName]) conns[fromName] = { main: [] }
   while (conns[fromName].main.length <= output) conns[fromName].main.push([])
@@ -270,23 +240,16 @@ export function generateN8nWorkflow(automation, templates) {
   n8nNodes.push(verificarN8n)
   setConnection(connections, triggerN8n.name, verificarN8n.name)
 
-  const estaDescIf = buildEstaDescadastradoIf({ x: 680, y: 280 })
-  n8nNodes.push(estaDescIf)
-  setConnection(connections, verificarN8n.name, estaDescIf.name)
-
-  const leadDesc = buildLeadDescadastradoNode({ x: 900, y: 120 })
-  n8nNodes.push(leadDesc)
-  setConnection(connections, estaDescIf.name, leadDesc.name, 0)
-
-  // Connection point para o "false" branch (não descadastrado): será o último nó da cadeia descendente
-  const lastInDescPath = { name: estaDescIf.name, output: 1 }
+  // Verificar Descadastro retorna [] se descadastrado (fluxo encerra) ou item se ok.
+  // Sem IF — n8n IF v2.3 tem bug que rota incorretamente.
+  const lastInDescPath = { name: verificarN8n.name, output: 0 }
 
   // Walk no flow_data a partir do trigger, gerando nós n8n
   const visited = new Set()
   const flowNodeMap = new Map(flowNodes.map(n => [n.id, n]))
 
-  let cursorX = 900
-  let cursorY = 360
+  let cursorX = 680
+  let cursorY = 280
   const STEP_X = 260
   const STEP_Y = 0
 
