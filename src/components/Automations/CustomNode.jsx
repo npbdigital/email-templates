@@ -1,7 +1,7 @@
 import { Handle, Position } from 'reactflow'
 import { NODE_TYPES } from './nodeTypes'
 
-function summary(node, templates, allNodes) {
+function summary(node, templates) {
   if (node.type === 'trigger') return node.data?.event_name ? `evento: ${node.data.event_name}` : 'sem evento'
   if (node.type === 'send_email') {
     if (!node.data?.template_id) return 'template não escolhido'
@@ -17,13 +17,8 @@ function summary(node, templates, allNodes) {
   if (node.type === 'wait_until_time') {
     return `às ${node.data?.time || '--:--'}`
   }
-  if (node.type === 'condition_opened' || node.type === 'condition_clicked') {
-    const refId = node.data?.reference_node_id
-    const refNode = allNodes?.find(n => n.id === refId)
-    if (!refNode) return 'sem e-mail de referência'
-    const tpl = templates?.find(t => t.id === refNode.data?.template_id)
-    return `verifica: ${tpl?.name || 'template removido'}`
-  }
+  if (node.type === 'condition_opened') return 'verifica abertura'
+  if (node.type === 'condition_clicked') return 'verifica clique'
   if (node.type === 'condition_time') {
     const op = node.data?.operator || '?'
     const t1 = node.data?.time1 || '--:--'
@@ -41,11 +36,11 @@ function summary(node, templates, allNodes) {
   return ''
 }
 
-export function makeCustomNode(templates, allNodes) {
+export function makeCustomNode(templates) {
   return function CustomNode({ data, type, selected }) {
     const meta = NODE_TYPES[type] || NODE_TYPES.end
     const Icon = meta.Icon
-    const sum = summary({ type, data }, templates, allNodes)
+    const sum = summary({ type, data }, templates)
     const isBranching = !!meta.branching
 
     return (

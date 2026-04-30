@@ -9,6 +9,7 @@ import ReactFlow, {
   useReactFlow
 } from 'reactflow'
 import 'reactflow/dist/style.css'
+import { Plus, X } from 'lucide-react'
 import { makeCustomNode } from './CustomNode'
 import NodePalette from './NodePalette'
 import NodeForm from './NodeForm'
@@ -25,6 +26,7 @@ function CanvasInner({ flowData, templates, automation, onChange }) {
   const [nodes, setNodes] = useState(flowData?.nodes || [])
   const [edges, setEdges] = useState(flowData?.edges || [])
   const [selectedId, setSelectedId] = useState(null)
+  const [showPalette, setShowPalette] = useState(false)
 
   useEffect(() => {
     setNodes(flowData?.nodes || [])
@@ -35,7 +37,8 @@ function CanvasInner({ flowData, templates, automation, onChange }) {
     onChange?.({ nodes, edges })
   }, [nodes, edges, onChange])
 
-  const customNode = useMemo(() => makeCustomNode(templates, nodes), [templates, nodes])
+  // customNode só depende de templates — não recriar em cada change de nodes
+  const customNode = useMemo(() => makeCustomNode(templates), [templates])
   const nodeTypes = useMemo(() => ({
     trigger: customNode,
     send_email: customNode,
@@ -81,6 +84,7 @@ function CanvasInner({ flowData, templates, automation, onChange }) {
       position,
       data: defaultDataFor(type, { trigger_event: automation?.trigger_event })
     }))
+    setShowPalette(false)
   }, [screenToFlowPosition, automation])
 
   const updateNodeData = useCallback((id, data) => {
@@ -97,11 +101,20 @@ function CanvasInner({ flowData, templates, automation, onChange }) {
     setSelectedId(prev => prev === id ? null : prev)
   }, [])
 
+  const handleNodeClick = useCallback((_event, node) => {
+    setSelectedId(node.id)
+    setShowPalette(false)
+  }, [])
+
+  const handlePaneClick = useCallback(() => {
+    setSelectedId(null)
+  }, [])
+
   const selectedNode = nodes.find(n => n.id === selectedId) || null
   const existingTypes = nodes.map(n => n.type)
 
   return (
-    <div style={{ display: 'flex', height: 540, gap: 12 }}>
+    <div style={{ display: 'flex', height: 600, gap: 12 }}>
       <div
         ref={wrapperRef}
         onDragOver={onDragOver}
@@ -122,8 +135,8 @@ function CanvasInner({ flowData, templates, automation, onChange }) {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           nodeTypes={nodeTypes}
-          onNodeClick={(_, n) => setSelectedId(n.id)}
-          onPaneClick={() => setSelectedId(null)}
+          onNodeClick={handleNodeClick}
+          onPaneClick={handlePaneClick}
           fitView
           fitViewOptions={{ padding: 0.2 }}
           deleteKeyCode={['Backspace', 'Delete']}
@@ -135,26 +148,57 @@ function CanvasInner({ flowData, templates, automation, onChange }) {
       </div>
 
       <div style={{
-        width: 280,
+        width: 300,
         flexShrink: 0,
         background: '#f8fafc',
         border: '1px solid #e2e8f0',
         borderRadius: 12,
         padding: 16,
-        overflowY: 'auto'
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column'
       }}>
-        {selectedNode ? (
-          <NodeForm
-            node={selectedNode}
-            templates={templates}
-            allNodes={nodes}
-            onChange={updateNodeData}
-            onDelete={deleteNode}
-          />
-        ) : (
-          <NodePalette existingNodeTypes={existingTypes} />
-        )}
+        <button
+          onClick={() => { setShowPalette(s => !s); if (!showPalette) setSelectedId(null) }}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            background: showPalette ? 'white' : '#0f766e',
+            color: showPalette ? '#475569' : 'white',
+            border: showPalette ? '1px solid #e2e8f0' : 'none',
+            borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500,
+            cursor: 'pointer', marginBottom: 14, width: '100%'
+          }}
+        >
+          {showPalette ? (<><X size={14} /> Fechar lista</>) : (<><Plus size={14} /> Adicionar nó</>)}
+        </button>
+
+        <div style={{ flex: 1, minHeight: 0 }}>
+          {showPalette ? (
+            <NodePalette existingNodeTypes={existingTypes} />
+          ) : selectedNode ? (
+            <NodeForm
+              node={selectedNode}
+              templates={templates}
+              allNodes={nodes}
+              onChange={updateNodeData}
+              onDelete={deleteNode}
+            />
+          ) : (
+            <EmptyHint />
+          )}
+        </div>
       </div>
+    </div>
+  )
+}
+
+function EmptyHint() {
+  return (
+    <div style={{
+      textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: '40px 12px', lineHeight: 1.6
+    }}>
+      <p style={{ marginBottom: 8 }}>Clique em qualquer <strong>nó do canvas</strong> para configurá-lo.</p>
+      <p>Use <strong style={{ color: '#0f766e' }}>+ Adicionar nó</strong> acima para arrastar novos passos.</p>
     </div>
   )
 }
