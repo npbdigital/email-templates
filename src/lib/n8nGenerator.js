@@ -178,6 +178,79 @@ function buildTriggerNode(automation, position) {
   }
 }
 
+function buildLogStartNode(automationId, position) {
+  const jsCode = [
+    "const data = $('" + TRIGGER_NODE_NAME + "').item.json.body || {};",
+    "const email = (data.email || '').toString().toLowerCase().trim();",
+    "const name = data.name || data.nome || null;",
+    "let runId = null;",
+    "try {",
+    "  const url = '" + SUPABASE_URL + "/rest/v1/automation_runs';",
+    "  const res = await fetch(url, {",
+    "    method: 'POST',",
+    "    headers: {",
+    "      apikey: '" + SUPABASE_KEY + "',",
+    "      Authorization: 'Bearer " + SUPABASE_KEY + "',",
+    "      'Content-Type': 'application/json',",
+    "      Prefer: 'return=representation'",
+    "    },",
+    "    body: JSON.stringify({",
+    "      automation_id: '" + automationId + "',",
+    "      contact_email: email,",
+    "      contact_name: name,",
+    "      status: 'running',",
+    "      payload: data",
+    "    })",
+    "  });",
+    "  if (res.ok) {",
+    "    const arr = await res.json();",
+    "    if (Array.isArray(arr) && arr.length > 0) runId = arr[0].id;",
+    "  }",
+    "} catch (e) { console.log('log start failed:', e?.message); }",
+    "return [{ json: { ...$('" + TRIGGER_NODE_NAME + "').item.json, _runId: runId } }];"
+  ].join('\n')
+
+  return {
+    id: makeNodeId(),
+    name: 'Log Start',
+    type: 'n8n-nodes-base.code',
+    typeVersion: 2,
+    position: [position.x, position.y],
+    parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode }
+  }
+}
+
+function buildLogEndNode(position, suffix) {
+  const jsCode = [
+    "const runId = $('Log Start').item.json._runId || null;",
+    "if (runId) {",
+    "  try {",
+    "    const url = '" + SUPABASE_URL + "/rest/v1/automation_runs?id=eq.' + runId;",
+    "    await fetch(url, {",
+    "      method: 'PATCH',",
+    "      headers: {",
+    "        apikey: '" + SUPABASE_KEY + "',",
+    "        Authorization: 'Bearer " + SUPABASE_KEY + "',",
+    "        'Content-Type': 'application/json',",
+    "        Prefer: 'return=minimal'",
+    "      },",
+    "      body: JSON.stringify({ status: 'completed', completed_at: new Date().toISOString() })",
+    "    });",
+    "  } catch (e) { console.log('log end failed:', e?.message); }",
+    "}",
+    "return [{ json: { status: 'fim', runId } }];"
+  ].join('\n')
+
+  return {
+    id: makeNodeId(),
+    name: 'Log End ' + suffix,
+    type: 'n8n-nodes-base.code',
+    typeVersion: 2,
+    position: [position.x, position.y],
+    parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode }
+  }
+}
+
 function buildVerificarDescadastroNode(position) {
   const jsCode = [
     "const triggerData = $('" + TRIGGER_NODE_NAME + "').item.json.body || {};",
@@ -603,11 +676,15 @@ export function generateN8nWorkflow(automation, templates) {
   n8nNodes.push(verificarN8n)
   setConnection(connections, triggerN8n.name, verificarN8n.name)
 
+  const logStartN8n = buildLogStartNode(automation.id, { x: 660, y: 280 })
+  n8nNodes.push(logStartN8n)
+  setConnection(connections, verificarN8n.name, logStartN8n.name)
+
   // Walk no flow_data a partir do trigger
   const flowNodeMap = new Map(flowNodes.map(n => [n.id, n]))
   const memo = new Map() // flowNodeId -> { entries: [{name, output}], exits: [{name, output, handle?}] }
 
-  let cursorX = 680
+  let cursorX = 880
   const STEP_X = 240
   const STEP_Y = 180
 
@@ -707,8 +784,9 @@ export function generateN8nWorkflow(automation, templates) {
     }
 
     if (t === 'end') {
-      // Nada — termina aqui
-      return { entry: null, exits: [] }
+      const logEnd = buildLogEndNode(nextPos(), sx)
+      n8nNodes.push(logEnd)
+      return { entry: logEnd.name, exits: [{ name: logEnd.name, output: 0 }] }
     }
 
     if (t === 'trigger') {
@@ -749,10 +827,10 @@ export function generateN8nWorkflow(automation, templates) {
     }
   }
 
-  // Ponto de partida: primeiro nó depois do trigger conecta no Verificar Descadastro
+  // Ponto de partida: primeiro nó depois do trigger conecta após Log Start
   const trigOutgoing = flowEdges.filter(e => e.source === triggerFlow.id)
   for (const edge of trigOutgoing) {
-    appendChain(edge.target, verificarN8n.name, 0)
+    appendChain(edge.target, logStartN8n.name, 0)
   }
 
   return {

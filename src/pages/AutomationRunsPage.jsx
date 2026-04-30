@@ -113,10 +113,10 @@ export default function AutomationRunsPage() {
         </div>
       </div>
 
-      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', borderRadius: 8, padding: '10px 14px', fontSize: 12, marginBottom: 14, lineHeight: 1.5 }}>
-        ℹ️ As execuções listadas aqui dependem da automação registrar via <code>automation_runs</code> no Supabase.
-        Atualmente o n8n não escreve nessa tabela automaticamente — para detalhe completo de cada disparo veja a aba <strong>Executions</strong> no n8n.
-      </div>
+      <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 14, lineHeight: 1.5 }}>
+        Cada disparo do webhook gera uma linha. <strong>"Em execução"</strong> = entrou no fluxo mas ainda não chegou em um nó <em>Fim</em>.
+        Pra logar o término, adicione nós <em>Fim</em> em todas as pontas do fluxo.
+      </p>
 
       {runs.length === 0 ? (
         <div style={{ background: 'white', borderRadius: 12, border: '1px solid #e2e8f0', padding: '60px 24px', textAlign: 'center' }}>
