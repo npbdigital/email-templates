@@ -1,6 +1,15 @@
 import { NODE_TYPES } from './nodeTypes'
 
-const PALETTE_ORDER = ['send_email', 'end']
+const PALETTE_ORDER = [
+  'send_email',
+  'wait_duration',
+  'wait_until_time',
+  'condition_opened',
+  'condition_clicked',
+  'condition_time',
+  'webhook_out',
+  'end'
+]
 
 export default function NodePalette({ existingNodeTypes = [] }) {
   const onDragStart = (event, type) => {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Workflow, Trash2 } from 'lucide-react'
+import { Workflow, Trash2, Copy, History } from 'lucide-react'
 import { useAutomations } from '../hooks/useAutomations'
 import StatusBadge from '../components/Automations/StatusBadge'
 import NewAutomationModal from '../components/Automations/NewAutomationModal'
@@ -13,7 +13,7 @@ function fmtDate(iso) {
 
 export default function AutomationsListPage() {
   const navigate = useNavigate()
-  const { automations, loading, createAutomation, deleteAutomation } = useAutomations()
+  const { automations, loading, createAutomation, deleteAutomation, duplicateAutomation } = useAutomations()
   const [showNew, setShowNew] = useState(false)
   const [busyId, setBusyId] = useState(null)
 
@@ -28,6 +28,18 @@ export default function AutomationsListPage() {
     setBusyId(id)
     try {
       await deleteAutomation(id)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const handleDuplicate = async (id) => {
+    setBusyId(id)
+    try {
+      const created = await duplicateAutomation(id)
+      if (created?.id) navigate(`/automations/${created.id}`)
+    } catch (e) {
+      alert(e?.message || 'Falha ao duplicar.')
     } finally {
       setBusyId(null)
     }
@@ -94,16 +106,37 @@ export default function AutomationsListPage() {
                   <td style={{ padding: '12px 14px' }}><StatusBadge status={a.status} /></td>
                   <td style={{ padding: '12px 14px', color: '#64748b', fontSize: 12 }}>{fmtDate(a.updated_at)}</td>
                   <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(a.id) }}
-                      disabled={busyId === a.id}
-                      title="Apagar"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, display: 'inline-flex' }}
-                      onMouseEnter={(e) => e.currentTarget.style.color = '#dc2626'}
-                      onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                    <div style={{ display: 'inline-flex', gap: 2 }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/automations/${a.id}/runs`) }}
+                        title="Histórico de execuções"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, display: 'inline-flex' }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = '#0f766e'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+                      >
+                        <History size={15} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDuplicate(a.id) }}
+                        disabled={busyId === a.id}
+                        title="Duplicar"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, display: 'inline-flex' }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = '#0f766e'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+                      >
+                        <Copy size={15} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(a.id) }}
+                        disabled={busyId === a.id}
+                        title="Apagar"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, display: 'inline-flex' }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = '#dc2626'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

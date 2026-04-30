@@ -35,10 +35,16 @@ function CanvasInner({ flowData, templates, automation, onChange }) {
     onChange?.({ nodes, edges })
   }, [nodes, edges, onChange])
 
-  const customNode = useMemo(() => makeCustomNode(templates), [templates])
+  const customNode = useMemo(() => makeCustomNode(templates, nodes), [templates, nodes])
   const nodeTypes = useMemo(() => ({
     trigger: customNode,
     send_email: customNode,
+    wait_duration: customNode,
+    wait_until_time: customNode,
+    condition_opened: customNode,
+    condition_clicked: customNode,
+    condition_time: customNode,
+    webhook_out: customNode,
     end: customNode
   }), [customNode])
 
@@ -141,6 +147,7 @@ function CanvasInner({ flowData, templates, automation, onChange }) {
           <NodeForm
             node={selectedNode}
             templates={templates}
+            allNodes={nodes}
             onChange={updateNodeData}
             onDelete={deleteNode}
           />

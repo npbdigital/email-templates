@@ -8,6 +8,7 @@ import TemplateEditorPage from './pages/TemplateEditorPage'
 import MetricsPage from './pages/MetricsPage'
 import AutomationsListPage from './pages/AutomationsListPage'
 import AutomationBuilderPage from './pages/AutomationBuilderPage'
+import AutomationRunsPage from './pages/AutomationRunsPage'
 import UnsubscribePage from './pages/UnsubscribePage'
 import NotificationsPage from './pages/NotificationsPage'
 import UnsubscribedPage from './pages/UnsubscribedPage'
@@ -48,6 +49,7 @@ function AuthedApp() {
         <Route path="/metrics" element={<MetricsPage />} />
         <Route path="/automations" element={<AutomationsListPage />} />
         <Route path="/automations/:id" element={<AutomationBuilderPage />} />
+        <Route path="/automations/:id/runs" element={<AutomationRunsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/unsubscribed" element={<UnsubscribedPage />} />
         <Route path="*" element={<Navigate to="/templates" replace />} />

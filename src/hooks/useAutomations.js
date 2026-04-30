@@ -48,7 +48,33 @@ export function useAutomations() {
     await load()
   }
 
-  return { automations, loading, reload: load, createAutomation, deleteAutomation }
+  const duplicateAutomation = async (id) => {
+    const { data: src, error: e1 } = await supabase
+      .from('automations')
+      .select('name, description, flow_data')
+      .eq('id', id)
+      .single()
+    if (e1) throw e1
+    const baseName = (src.name || 'Automação') + ' (cópia)'
+    const baseTrigger = 'evento_' + Date.now()
+    const payload = {
+      name: baseName,
+      trigger_event: baseTrigger,
+      description: src.description || null,
+      status: 'draft',
+      flow_data: src.flow_data || EMPTY_FLOW
+    }
+    const { data, error } = await supabase
+      .from('automations')
+      .insert(payload)
+      .select()
+      .single()
+    if (error) throw error
+    await load()
+    return data
+  }
+
+  return { automations, loading, reload: load, createAutomation, deleteAutomation, duplicateAutomation }
 }
 
 export async function fetchAutomation(id) {
